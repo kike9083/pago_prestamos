@@ -1,0 +1,5 @@
+{
+  "name": "Gestor de Préstamos",
+  "description": "Una aplicación para gestionar y dar seguimiento al pago de préstamos personales. Calcula tablas de amortización, registra pagos y visualiza tu progreso financiero.",
+  "requestFramePermissions": []
+}
