@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, FC } from 'react';
 import { supabase } from '../services/supabase';
 import type { Loan, Payment, Session, NewLoan } from '../types';
@@ -112,6 +113,229 @@ const AddLoanModal: FC<{ isOpen: boolean; onClose: () => void; onLoanAdded: () =
     );
 };
 
+// EditLoanModal Component
+const EditLoanModal: FC<{ isOpen: boolean; onClose: () => void; loan: Loan; onLoanUpdated: () => void; }> = ({ isOpen, onClose, loan, onLoanUpdated }) => {
+    const [name, setName] = useState(loan.name);
+    const [interestRate, setInterestRate] = useState(loan.interest_rate.toString());
+    const [termMonths, setTermMonths] = useState(loan.term_months.toString());
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (isOpen) {
+            setName(loan.name);
+            setInterestRate(loan.interest_rate.toString());
+            setTermMonths(loan.term_months.toString());
+            setError('');
+        }
+    }, [isOpen, loan]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError('');
+
+        const parsedRate = parseFloat(interestRate);
+        const parsedTerm = parseInt(termMonths, 10);
+
+        if (!name.trim()) {
+             setError('El nombre es requerido.');
+             setIsLoading(false);
+             return;
+        }
+        if (isNaN(parsedRate) || parsedRate < 0) {
+            setError('Tasa de interés inválida.');
+            setIsLoading(false);
+            return;
+        }
+        if (isNaN(parsedTerm) || parsedTerm <= 0) {
+             setError('Plazo inválido.');
+             setIsLoading(false);
+             return;
+        }
+
+        const newSuggestedPayment = calculateSuggestedPayment(loan.initial_amount, parsedRate, parsedTerm);
+
+        try {
+            const { error } = await supabase
+                .from('loans')
+                .update({
+                    name: name.trim(),
+                    interest_rate: parsedRate,
+                    term_months: parsedTerm,
+                    suggested_payment: newSuggestedPayment
+                })
+                .eq('id', loan.id);
+
+            if (error) throw error;
+            
+            onLoanUpdated();
+            onClose();
+        } catch (err: any) {
+            setError('Error al actualizar el préstamo: ' + (err.message || 'Error desconocido'));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title="Editar Préstamo">
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <Input id="edit-name" label="Nombre" value={name} onChange={e => setName(e.target.value)} required />
+                <Input id="edit-rate" label="Tasa de Interés Quincenal (%)" type="number" step="0.01" value={interestRate} onChange={e => setInterestRate(e.target.value)} required />
+                <Input id="edit-term" label="Plazo (meses)" type="number" value={termMonths} onChange={e => setTermMonths(e.target.value)} required />
+                {error && <p className="text-red-500 text-sm">{error}</p>}
+                <div className="flex justify-end gap-2 pt-4">
+                    <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+                    <Button type="submit" isLoading={isLoading}>Guardar Cambios</Button>
+                </div>
+            </form>
+        </Modal>
+    );
+};
+
+// EditPaymentModal Component
+const EditPaymentModal: FC<{ 
+    isOpen: boolean; 
+    onClose: () => void; 
+    payment: Payment; 
+    loan: Loan;
+    previousBalance: number;
+    previousPaymentDate: string; // Date of the payment BEFORE this one (or start date)
+    onPaymentUpdated: () => void; 
+}> = ({ isOpen, onClose, payment, loan, previousBalance, previousPaymentDate, onPaymentUpdated }) => {
+    const [amount, setAmount] = useState(payment.amount_paid.toString());
+    const [date, setDate] = useState(payment.payment_date);
+    const [isExtraordinary, setIsExtraordinary] = useState(payment.interest_paid === 0 && payment.principal_paid > 0);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (isOpen) {
+            setAmount(payment.amount_paid.toString());
+            setDate(payment.payment_date);
+            // Heuristic: if interest is 0 and there was principal, assume extraordinary.
+            // User can toggle if it was a regular payment that just happened to have 0 interest (rare but possible)
+            setIsExtraordinary(payment.interest_paid === 0 && payment.principal_paid > 0);
+            setError('');
+        }
+    }, [isOpen, payment]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError('');
+
+        const parsedAmount = parseFloat(amount);
+        if (isNaN(parsedAmount) || parsedAmount <= 0) {
+            setError('Monto inválido.');
+            setIsLoading(false);
+            return;
+        }
+
+        // Recalculate breakdown based on PREVIOUS balance and NEW inputs
+        let interestPaid = 0;
+        let principalPaid = 0;
+
+        if (isExtraordinary) {
+            interestPaid = 0;
+            principalPaid = parsedAmount;
+        } else {
+            const { interest } = calculateInterestDue(
+                previousBalance,
+                loan.interest_rate,
+                previousPaymentDate === loan.start_date ? null : previousPaymentDate, // Logic for first payment check
+                loan.start_date,
+                date
+            );
+            
+            // If new amount is less than interest, we allow it but everything goes to interest
+            // or validation fails? Following existing logic: allow, but check.
+            // Current logic in payment screen requires amount >= interest.
+            // However, for edit, let's apply standard distribution.
+            
+            if (parsedAmount < interest) {
+                setError(`El monto debe cubrir al menos el interés calculado de ${formatCurrency(interest)}.`);
+                setIsLoading(false);
+                return;
+            }
+
+            interestPaid = interest;
+            principalPaid = parsedAmount - interestPaid;
+        }
+
+        const newBalanceAfter = Math.max(0, previousBalance - principalPaid);
+
+        try {
+            // 1. Update Payment
+            const { error: payError } = await supabase
+                .from('payments')
+                .update({
+                    amount_paid: parsedAmount,
+                    payment_date: date,
+                    interest_paid: interestPaid,
+                    principal_paid: principalPaid,
+                    balance_after_payment: newBalanceAfter
+                })
+                .eq('id', payment.id);
+
+            if (payError) throw payError;
+
+            // 2. Update Loan (Current Balance & Last Payment Date)
+            // Since we only edit the LAST payment, the loan's current balance matches this payment's result
+            const { error: loanError } = await supabase
+                .from('loans')
+                .update({
+                    current_balance: newBalanceAfter,
+                    last_payment_date: date
+                })
+                .eq('id', loan.id);
+
+            if (loanError) throw loanError;
+
+            onPaymentUpdated();
+            onClose();
+        } catch (err: any) {
+            setError('Error al actualizar: ' + err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title="Editar Último Pago">
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="bg-blue-50 text-blue-700 p-3 rounded-md text-sm mb-2">
+                    <p>Estás editando el pago más reciente. El saldo y los intereses se recalcularán en base al saldo anterior de <strong>{formatCurrency(previousBalance)}</strong>.</p>
+                </div>
+                
+                <Input id="edit-pay-amount" label="Monto Pagado" type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} required />
+                <Input id="edit-pay-date" label="Fecha" type="date" value={date} onChange={e => setDate(e.target.value)} required />
+                
+                <div className="flex items-center mt-2">
+                    <input
+                        id="edit-isExtraordinary"
+                        type="checkbox"
+                        checked={isExtraordinary}
+                        onChange={(e) => setIsExtraordinary(e.target.checked)}
+                        className="w-4 h-4 text-primary-600 bg-slate-100 border-slate-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600"
+                    />
+                    <label htmlFor="edit-isExtraordinary" className="ml-2 text-sm font-medium text-slate-900 dark:text-slate-300">
+                        Pago Extraordinario (Sin intereses)
+                    </label>
+                </div>
+
+                {error && <p className="text-red-500 text-sm">{error}</p>}
+                
+                <div className="flex justify-end gap-2 pt-4">
+                    <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+                    <Button type="submit" isLoading={isLoading}>Guardar Cambios</Button>
+                </div>
+            </form>
+        </Modal>
+    );
+};
+
 // LoanDetail Component
 const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void }> = ({ loan: initialLoan, onBack, onLoanUpdated }) => {
     const [loan, setLoan] = useState<Loan>(initialLoan);
@@ -120,14 +344,20 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
     
     const [paymentAmount, setPaymentAmount] = useState('');
     const [paymentDate, setPaymentDate] = useState(toYYYYMMDD(new Date()));
+    const [isExtraordinary, setIsExtraordinary] = useState(false); 
     const [isPaying, setIsPaying] = useState(false);
     const [paymentError, setPaymentError] = useState('');
-    const [paymentBreakdown, setPaymentBreakdown] = useState<{ interest: number; principal: number; newBalance: number } | null>(null);
-    const [isExtraordinaryPayment, setIsExtraordinaryPayment] = useState(false); // Nuevo estado
+    const [paymentBreakdown, setPaymentBreakdown] = useState<{ interest: number; principal: number; newBalance: number; fortnights: number } | null>(null);
 
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState('');
+
+    // State for editing payments
+    const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+    const [prevBalanceForEdit, setPrevBalanceForEdit] = useState(0);
+    const [prevDateForEdit, setPrevDateForEdit] = useState('');
 
     const fetchLoanDetails = useCallback(async () => {
         setIsLoading(true);
@@ -149,31 +379,39 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
     useEffect(() => {
         const amount = parseFloat(paymentAmount);
         if (!isNaN(amount) && amount > 0 && paymentDate) {
-            let interestToCover = 0;
-            let principalApplication = amount;
-            let estimatedNewBalance = loan.current_balance - amount;
-
-            if (!isExtraordinaryPayment) {
-                interestToCover = calculateInterestDue(
+            if (isExtraordinary) {
+                const interestToCover = 0;
+                const principalApplication = amount;
+                const estimatedNewBalance = loan.current_balance - principalApplication;
+                
+                setPaymentBreakdown({
+                    interest: 0,
+                    principal: principalApplication,
+                    newBalance: estimatedNewBalance < 0 ? 0 : estimatedNewBalance,
+                    fortnights: 0,
+                });
+            } else {
+                const { interest: interestToCover, fortnights } = calculateInterestDue(
                     loan.current_balance,
                     loan.interest_rate,
                     loan.last_payment_date,
                     loan.start_date,
                     paymentDate
                 );
-                principalApplication = amount > interestToCover ? amount - interestToCover : 0;
-                estimatedNewBalance = loan.current_balance - principalApplication;
-            }
+                const principalApplication = amount > interestToCover ? amount - interestToCover : 0;
+                const estimatedNewBalance = loan.current_balance - principalApplication;
 
-            setPaymentBreakdown({
-                interest: interestToCover,
-                principal: principalApplication,
-                newBalance: estimatedNewBalance < 0 ? 0 : estimatedNewBalance,
-            });
+                setPaymentBreakdown({
+                    interest: interestToCover,
+                    principal: principalApplication,
+                    newBalance: estimatedNewBalance < 0 ? 0 : estimatedNewBalance,
+                    fortnights,
+                });
+            }
         } else {
             setPaymentBreakdown(null);
         }
-    }, [paymentAmount, paymentDate, loan, isExtraordinaryPayment]);
+    }, [paymentAmount, paymentDate, loan, isExtraordinary]);
 
     const handleMakePayment = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -188,12 +426,15 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
         }
 
         let interestPaid = 0;
-        let principalPaid = amount; // Default for extraordinary payment
-        let newBalance = Math.max(0, loan.current_balance - principalPaid);
+        let principalPaid = 0;
+        let newBalance = 0;
 
-        if (!isExtraordinaryPayment) {
-            // Logic for regular payment: calculate and cover interest first
-            const accruedInterest = calculateInterestDue(
+        if (isExtraordinary) {
+            interestPaid = 0;
+            principalPaid = amount;
+            newBalance = Math.max(0, loan.current_balance - principalPaid);
+        } else {
+            const { interest: accruedInterest } = calculateInterestDue(
                 loan.current_balance,
                 loan.interest_rate,
                 loan.last_payment_date,
@@ -210,13 +451,9 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
             interestPaid = accruedInterest;
             principalPaid = amount - interestPaid;
             newBalance = Math.max(0, loan.current_balance - principalPaid);
-        } else {
-            // Logic for extraordinary payment: all goes to principal
-            // No specific minimum amount beyond being positive, as no interest is covered.
         }
 
         try {
-            // 1. Register Payment
             const { error: paymentError } = await supabase.from('payments').insert({
                 loan_id: loan.id,
                 user_id: loan.user_id,
@@ -229,7 +466,6 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
 
             if (paymentError) throw paymentError;
 
-            // 2. Update Loan Balance and last_payment_date
             const { error: loanError } = await supabase.from('loans').update({
                 current_balance: newBalance,
                 last_payment_date: paymentDate
@@ -237,10 +473,9 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
 
             if (loanError) throw loanError;
             
-            // Reset form fields
             setPaymentAmount('');
             setPaymentDate(toYYYYMMDD(new Date()));
-            setIsExtraordinaryPayment(false); // Reset checkbox for next payment
+            setIsExtraordinary(false);
             setPaymentBreakdown(null);
             await fetchLoanDetails();
 
@@ -265,6 +500,24 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
             setIsDeleting(false);
         }
     };
+
+    const openEditPaymentModal = (payment: Payment, index: number) => {
+        // Calculate the balance BEFORE this payment.
+        // Balance After = Balance Before - Principal Paid
+        // Therefore: Balance Before = Balance After + Principal Paid
+        const prevBalance = payment.balance_after_payment + payment.principal_paid;
+        setPrevBalanceForEdit(prevBalance);
+
+        // Determine the effective date of the PREVIOUS activity (to calc interest).
+        // If this is the only payment (index is last), use loan start date.
+        // If there are payments after (older), use the payment_date of the next one in array.
+        let pDate = loan.start_date;
+        if (index < payments.length - 1) {
+            pDate = payments[index + 1].payment_date;
+        }
+        setPrevDateForEdit(pDate);
+        setEditingPayment(payment);
+    };
     
     const principalPaid = loan.initial_amount - loan.current_balance;
     const progress = loan.initial_amount > 0 ? (principalPaid / loan.initial_amount) * 100 : 0;
@@ -272,7 +525,7 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
     const isPaymentButtonDisabled = isPaying || 
         isNaN(parseFloat(paymentAmount)) || 
         parseFloat(paymentAmount) <= 0 || 
-        (!isExtraordinaryPayment && paymentBreakdown && parseFloat(paymentAmount) < paymentBreakdown.interest);
+        (paymentBreakdown && parseFloat(paymentAmount) < paymentBreakdown.interest && !isExtraordinary);
 
 
     return (
@@ -282,10 +535,16 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
                  <button onClick={onBack} className="text-sm text-primary-600 hover:underline flex items-center p-2 -ml-2">
                     &larr; Volver a todos los préstamos
                 </button>
-                <Button variant="danger" onClick={() => setIsDeleteModalOpen(true)}>
-                    <Icons.Trash2 className="w-4 h-4 mr-2"/>
-                    Eliminar Préstamo
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="secondary" onClick={() => setIsEditModalOpen(true)}>
+                        <Icons.Pencil className="w-4 h-4 mr-2" />
+                        Editar
+                    </Button>
+                    <Button variant="danger" onClick={() => setIsDeleteModalOpen(true)}>
+                        <Icons.Trash2 className="w-4 h-4 mr-2"/>
+                        Eliminar
+                    </Button>
+                </div>
             </div>
             
             <Card>
@@ -322,37 +581,39 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
                 <Card className="mt-6">
                     <CardHeader><h3 className="text-lg font-semibold">Realizar un Pago</h3></CardHeader>
                     <CardContent>
-                        <form onSubmit={handleMakePayment} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-                            <Input 
-                                id="paymentAmount" 
-                                label="Monto a Pagar" 
-                                type="number" 
-                                step="0.01"
-                                placeholder={loan.suggested_payment.toFixed(2)}
-                                value={paymentAmount} 
-                                onChange={e => setPaymentAmount(e.target.value)} 
-                                required 
-                            />
-                            <Input
-                                id="paymentDate"
-                                label="Fecha del Pago"
-                                type="date"
-                                value={paymentDate}
-                                onChange={e => setPaymentDate(e.target.value)}
-                                required
-                            />
-                            <Button type="submit" isLoading={isPaying} className="w-full" disabled={isPaymentButtonDisabled}>Pagar ahora</Button>
-                            
-                            <div className="flex items-center sm:col-span-3 mt-2 sm:mt-0"> {/* Checkbox ocupa todo el ancho en móviles y tablets */}
-                                <input
-                                    id="extraordinaryPayment"
-                                    type="checkbox"
-                                    checked={isExtraordinaryPayment}
-                                    onChange={e => setIsExtraordinaryPayment(e.target.checked)}
-                                    className="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 dark:bg-slate-700 dark:border-slate-600"
+                        <form onSubmit={handleMakePayment} className="grid grid-cols-1 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                                <Input 
+                                    id="paymentAmount" 
+                                    label="Monto a Pagar" 
+                                    type="number" 
+                                    step="0.01"
+                                    placeholder={loan.suggested_payment.toFixed(2)}
+                                    value={paymentAmount} 
+                                    onChange={e => setPaymentAmount(e.target.value)} 
+                                    required 
                                 />
-                                <label htmlFor="extraordinaryPayment" className="ml-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-                                    Pago Extraordinario (todo a capital)
+                                <Input
+                                    id="paymentDate"
+                                    label="Fecha del Pago"
+                                    type="date"
+                                    value={paymentDate}
+                                    onChange={e => setPaymentDate(e.target.value)}
+                                    required
+                                />
+                                <Button type="submit" isLoading={isPaying} className="w-full" disabled={isPaymentButtonDisabled}>Pagar ahora</Button>
+                            </div>
+                            
+                            <div className="flex items-center">
+                                <input
+                                    id="isExtraordinary"
+                                    type="checkbox"
+                                    checked={isExtraordinary}
+                                    onChange={(e) => setIsExtraordinary(e.target.checked)}
+                                    className="w-4 h-4 text-primary-600 bg-slate-100 border-slate-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-slate-800 focus:ring-2 dark:bg-slate-700 dark:border-slate-600"
+                                />
+                                <label htmlFor="isExtraordinary" className="ml-2 text-sm font-medium text-slate-900 dark:text-slate-300">
+                                    Pago Extraordinario (Todo a capital, sin intereses)
                                 </label>
                             </div>
                         </form>
@@ -361,10 +622,19 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
                             <div className="mt-4 p-3 bg-slate-100 dark:bg-slate-700 rounded-lg text-sm space-y-2">
                                 <h4 className="font-semibold text-slate-800 dark:text-slate-200">Desglose del Pago</h4>
                                 <div className="flex justify-between">
-                                    <span className="text-slate-500 dark:text-slate-400">Interés a cubrir:</span>
-                                    <span className="font-medium">{formatCurrency(paymentBreakdown.interest)}</span>
+                                    <span className="text-slate-500 dark:text-slate-400">
+                                        Interés a cubrir 
+                                        {!isExtraordinary && (
+                                            <span className="text-xs ml-1 text-primary-600 bg-primary-100 dark:bg-primary-900 px-1.5 py-0.5 rounded-full">
+                                                {paymentBreakdown.fortnights} {paymentBreakdown.fortnights === 1 ? 'quincena' : 'quincenas'}
+                                            </span>
+                                        )}:
+                                    </span>
+                                    <span className={`font-medium ${isExtraordinary ? 'text-slate-400 line-through' : ''}`}>
+                                        {formatCurrency(paymentBreakdown.interest)}
+                                    </span>
                                 </div>
-                                {!isExtraordinaryPayment && parseFloat(paymentAmount) < paymentBreakdown.interest && paymentAmount && (
+                                {parseFloat(paymentAmount) < paymentBreakdown.interest && !isExtraordinary && paymentAmount && (
                                     <p className="text-red-500 text-xs">El monto es insuficiente para cubrir el interés.</p>
                                 )}
                                 <div className="flex justify-between">
@@ -396,16 +666,28 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
                                 <th scope="col" className="px-4 py-3 text-right">Interés Pagado</th>
                                 <th scope="col" className="px-4 py-3 text-right">Capital Pagado</th>
                                 <th scope="col" className="px-4 py-3 text-right">Saldo Restante</th>
+                                <th scope="col" className="px-4 py-3 text-center">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {payments.map(p => (
+                            {payments.map((p, index) => (
                                 <tr key={p.id} className="bg-white dark:bg-slate-800 border-b dark:border-slate-700">
                                     <td className="px-4 py-3 font-medium">{formatDate(p.payment_date)}</td>
                                     <td className="px-4 py-3 text-right font-semibold text-green-600">{formatCurrency(p.amount_paid)}</td>
                                     <td className="px-4 py-3 text-right">{formatCurrency(p.interest_paid)}</td>
                                     <td className="px-4 py-3 text-right">{formatCurrency(p.principal_paid)}</td>
                                     <td className="px-4 py-3 text-right font-semibold">{formatCurrency(p.balance_after_payment)}</td>
+                                    <td className="px-4 py-3 text-center">
+                                        {index === 0 && (
+                                            <button 
+                                                onClick={() => openEditPaymentModal(p, index)}
+                                                className="text-primary-600 hover:text-primary-900 dark:hover:text-primary-400 p-1"
+                                                title="Editar último pago"
+                                            >
+                                                <Icons.Pencil className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -427,6 +709,30 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
                 </Button>
             </div>
         </Modal>
+
+        <EditLoanModal 
+            isOpen={isEditModalOpen} 
+            onClose={() => setIsEditModalOpen(false)} 
+            loan={loan} 
+            onLoanUpdated={() => {
+                fetchLoanDetails(); // Refresca la vista actual
+            }}
+        />
+        
+        {editingPayment && (
+            <EditPaymentModal
+                isOpen={!!editingPayment}
+                onClose={() => setEditingPayment(null)}
+                payment={editingPayment}
+                loan={loan}
+                previousBalance={prevBalanceForEdit}
+                previousPaymentDate={prevDateForEdit}
+                onPaymentUpdated={() => {
+                    setEditingPayment(null);
+                    fetchLoanDetails();
+                }}
+            />
+        )}
         </>
     );
 };
@@ -459,7 +765,11 @@ const DashboardPage: React.FC<{ session: Session }> = ({ session }) => {
   };
 
   if (selectedLoan) {
-    return <LoanDetail loan={selectedLoan} onBack={() => setSelectedLoan(null)} onLoanUpdated={handleLoanUpdated} />;
+    return <LoanDetail 
+        loan={selectedLoan} 
+        onBack={() => { setSelectedLoan(null); fetchLoans(); }} 
+        onLoanUpdated={handleLoanUpdated} 
+    />;
   }
 
   return (

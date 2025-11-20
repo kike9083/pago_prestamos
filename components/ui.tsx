@@ -19,7 +19,10 @@ const Trash2: FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
 const CheckCircle: FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
 );
-export const Icons = { LogOut, PlusCircle, ChevronRight, X, Trash2, CheckCircle };
+const Pencil: FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+);
+export const Icons = { LogOut, PlusCircle, ChevronRight, X, Trash2, CheckCircle, Pencil };
 
 
 // Button
