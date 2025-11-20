@@ -215,7 +215,6 @@ const EditPaymentModal: FC<{
             setAmount(payment.amount_paid.toString());
             setDate(payment.payment_date);
             // Heuristic: if interest is 0 and there was principal, assume extraordinary.
-            // User can toggle if it was a regular payment that just happened to have 0 interest (rare but possible)
             setIsExtraordinary(payment.interest_paid === 0 && payment.principal_paid > 0);
             setError('');
         }
@@ -249,11 +248,6 @@ const EditPaymentModal: FC<{
                 date
             );
             
-            // If new amount is less than interest, we allow it but everything goes to interest
-            // or validation fails? Following existing logic: allow, but check.
-            // Current logic in payment screen requires amount >= interest.
-            // However, for edit, let's apply standard distribution.
-            
             if (parsedAmount < interest) {
                 setError(`El monto debe cubrir al menos el interés calculado de ${formatCurrency(interest)}.`);
                 setIsLoading(false);
@@ -282,7 +276,6 @@ const EditPaymentModal: FC<{
             if (payError) throw payError;
 
             // 2. Update Loan (Current Balance & Last Payment Date)
-            // Since we only edit the LAST payment, the loan's current balance matches this payment's result
             const { error: loanError } = await supabase
                 .from('loans')
                 .update({
@@ -502,15 +495,8 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
     };
 
     const openEditPaymentModal = (payment: Payment, index: number) => {
-        // Calculate the balance BEFORE this payment.
-        // Balance After = Balance Before - Principal Paid
-        // Therefore: Balance Before = Balance After + Principal Paid
         const prevBalance = payment.balance_after_payment + payment.principal_paid;
         setPrevBalanceForEdit(prevBalance);
-
-        // Determine the effective date of the PREVIOUS activity (to calc interest).
-        // If this is the only payment (index is last), use loan start date.
-        // If there are payments after (older), use the payment_date of the next one in array.
         let pDate = loan.start_date;
         if (index < payments.length - 1) {
             pDate = payments[index + 1].payment_date;
@@ -547,42 +533,35 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
                 </div>
             </div>
             
-            <Card>
-                <CardHeader>
-                    <h2 className="text-xl font-bold">{loan.name}</h2>
-                    <p className="text-slate-500 dark:text-slate-400">
-                        {formatCurrency(loan.initial_amount)} @ {loan.interest_rate}% quincenal
-                    </p>
-                </CardHeader>
-                <CardContent>
-                    {isLoading ? <Spinner /> : (
-                    <>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 text-center">
-                            <div><p className="text-sm text-slate-500">Saldo Restante</p><p className="font-semibold text-lg text-primary-600">{formatCurrency(loan.current_balance)}</p></div>
-                            <div><p className="text-sm text-slate-500">Pago Sugerido</p><p className="font-semibold text-lg">{formatCurrency(loan.suggested_payment)}</p></div>
-                            <div><p className="text-sm text-slate-500">Capital Pagado</p><p className="font-semibold text-lg">{formatCurrency(principalPaid)}</p></div>
-                            <div><p className="text-sm text-slate-500">Interés Pagado</p><p className="font-semibold text-lg">{formatCurrency(payments.reduce((acc, p) => acc + p.interest_paid, 0))}</p></div>
-                        </div>
-                        <div className="mb-4">
-                            <div className="flex justify-between mb-1">
-                                <span className="text-base font-medium text-primary-700 dark:text-white">Progreso</span>
-                                <span className="text-sm font-medium text-primary-700 dark:text-white">{progress.toFixed(2)}%</span>
-                            </div>
-                            <div className="w-full bg-slate-200 rounded-full h-2.5 dark:bg-slate-700">
-                                <div className="bg-primary-600 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
-                            </div>
-                        </div>
-                    </>
-                    )}
-                </CardContent>
-            </Card>
+            <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+                     <p className="text-sm text-slate-500 mb-1">Saldo Restante</p>
+                     <p className="text-3xl font-bold text-primary-600">{formatCurrency(loan.current_balance)}</p>
+                </div>
+                 <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+                     <p className="text-sm text-slate-500 mb-1">Progreso de Pago</p>
+                     <div className="flex items-end gap-2">
+                         <p className="text-3xl font-bold text-slate-800 dark:text-slate-200">{progress.toFixed(1)}%</p>
+                         <p className="text-sm text-slate-400 mb-1.5">completado</p>
+                     </div>
+                     <div className="w-full bg-slate-100 rounded-full h-1.5 mt-3 dark:bg-slate-700">
+                         <div className="bg-primary-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                     </div>
+                </div>
+                 <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+                     <p className="text-sm text-slate-500 mb-1">Intereses Pagados</p>
+                     <p className="text-3xl font-bold text-slate-800 dark:text-slate-200">{formatCurrency(payments.reduce((acc, p) => acc + p.interest_paid, 0))}</p>
+                </div>
+            </div>
 
             {loan.current_balance > 0 && (
-                <Card className="mt-6">
-                    <CardHeader><h3 className="text-lg font-semibold">Realizar un Pago</h3></CardHeader>
-                    <CardContent>
-                        <form onSubmit={handleMakePayment} className="grid grid-cols-1 gap-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                <Card className="mb-8 overflow-hidden border-0 shadow-md rounded-2xl">
+                    <div className="bg-slate-50 dark:bg-slate-900 px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+                         <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Realizar un Pago</h3>
+                    </div>
+                    <CardContent className="p-6">
+                        <form onSubmit={handleMakePayment} className="grid grid-cols-1 gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-end">
                                 <Input 
                                     id="paymentAmount" 
                                     label="Monto a Pagar" 
@@ -601,112 +580,124 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
                                     onChange={e => setPaymentDate(e.target.value)}
                                     required
                                 />
-                                <Button type="submit" isLoading={isPaying} className="w-full" disabled={isPaymentButtonDisabled}>Pagar ahora</Button>
+                                <Button type="submit" isLoading={isPaying} className="h-[42px] w-full shadow-sm" disabled={isPaymentButtonDisabled}>
+                                    Registrar Pago
+                                </Button>
                             </div>
                             
-                            <div className="flex items-center">
+                            <div className="flex items-center bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-100 dark:border-slate-700 w-fit">
                                 <input
                                     id="isExtraordinary"
                                     type="checkbox"
                                     checked={isExtraordinary}
                                     onChange={(e) => setIsExtraordinary(e.target.checked)}
-                                    className="w-4 h-4 text-primary-600 bg-slate-100 border-slate-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-slate-800 focus:ring-2 dark:bg-slate-700 dark:border-slate-600"
+                                    className="w-4 h-4 text-primary-600 bg-white border-slate-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-slate-800 focus:ring-2 dark:bg-slate-700 dark:border-slate-600"
                                 />
-                                <label htmlFor="isExtraordinary" className="ml-2 text-sm font-medium text-slate-900 dark:text-slate-300">
-                                    Pago Extraordinario (Todo a capital, sin intereses)
+                                <label htmlFor="isExtraordinary" className="ml-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+                                    Pago Extraordinario (100% a capital)
                                 </label>
                             </div>
                         </form>
                         
                         {paymentBreakdown && (
-                            <div className="mt-4 p-3 bg-slate-100 dark:bg-slate-700 rounded-lg text-sm space-y-2">
-                                <h4 className="font-semibold text-slate-800 dark:text-slate-200">Desglose del Pago</h4>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-500 dark:text-slate-400">
-                                        Interés a cubrir 
+                            <div className="mt-6 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl text-sm space-y-3 border border-indigo-100 dark:border-indigo-800/30">
+                                <h4 className="font-semibold text-indigo-900 dark:text-indigo-200 flex items-center">
+                                    <span className="w-2 h-2 bg-indigo-500 rounded-full mr-2"></span>
+                                    Desglose Estimado
+                                </h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+                                    <div>
+                                         <span className="block text-xs text-indigo-600/70 dark:text-indigo-400 mb-0.5">Interés a cubrir</span>
+                                         <span className={`text-lg font-medium ${isExtraordinary ? 'text-slate-400 line-through' : 'text-indigo-900 dark:text-indigo-100'}`}>
+                                            {formatCurrency(paymentBreakdown.interest)}
+                                        </span>
                                         {!isExtraordinary && (
-                                            <span className="text-xs ml-1 text-primary-600 bg-primary-100 dark:bg-primary-900 px-1.5 py-0.5 rounded-full">
+                                            <span className="block text-[10px] text-indigo-500 mt-0.5">
                                                 {paymentBreakdown.fortnights} {paymentBreakdown.fortnights === 1 ? 'quincena' : 'quincenas'}
                                             </span>
-                                        )}:
-                                    </span>
-                                    <span className={`font-medium ${isExtraordinary ? 'text-slate-400 line-through' : ''}`}>
-                                        {formatCurrency(paymentBreakdown.interest)}
-                                    </span>
+                                        )}
+                                    </div>
+                                    <div>
+                                         <span className="block text-xs text-indigo-600/70 dark:text-indigo-400 mb-0.5">Abono a Capital</span>
+                                         <span className="text-lg font-medium text-indigo-900 dark:text-indigo-100">{formatCurrency(paymentBreakdown.principal)}</span>
+                                    </div>
+                                    <div>
+                                         <span className="block text-xs text-indigo-600/70 dark:text-indigo-400 mb-0.5">Saldo Final</span>
+                                         <span className="text-lg font-bold text-indigo-600 dark:text-indigo-300">{formatCurrency(paymentBreakdown.newBalance)}</span>
+                                    </div>
                                 </div>
                                 {parseFloat(paymentAmount) < paymentBreakdown.interest && !isExtraordinary && paymentAmount && (
-                                    <p className="text-red-500 text-xs">El monto es insuficiente para cubrir el interés.</p>
+                                    <p className="text-red-500 text-xs font-medium bg-red-50 p-2 rounded border border-red-100">⚠️ El monto es insuficiente para cubrir el interés acumulado.</p>
                                 )}
-                                <div className="flex justify-between">
-                                    <span className="text-slate-500 dark:text-slate-400">Abono a capital:</span>
-                                    <span className="font-medium">{formatCurrency(paymentBreakdown.principal)}</span>
-                                </div>
-                                <div className="flex justify-between border-t border-slate-200 dark:border-slate-600 pt-2 mt-2">
-                                    <span className="font-semibold">Nuevo saldo estimado:</span>
-                                    <span className="font-semibold text-primary-600">{formatCurrency(paymentBreakdown.newBalance)}</span>
-                                </div>
                             </div>
                         )}
-                        {paymentError && <p className="text-red-500 text-sm mt-2">{paymentError}</p>}
+                        {paymentError && <p className="text-red-500 text-sm mt-4 bg-red-50 p-3 rounded-lg border border-red-100">{paymentError}</p>}
                     </CardContent>
                 </Card>
             )}
 
-            <div className="mt-6">
-                <h3 className="text-lg font-semibold mb-2">Historial de Pagos</h3>
+            <div className="mt-8">
+                <h3 className="text-lg font-semibold mb-4 text-slate-800 dark:text-slate-200">Historial de Pagos</h3>
                 {isLoading ? <Spinner /> : payments.length === 0 ? (
-                    <p className="text-slate-500 text-sm">Aún no se han realizado pagos.</p>
+                    <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
+                        <p className="text-slate-500 text-sm">No hay registros de pagos aún.</p>
+                    </div>
                 ) : (
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-slate-500 dark:text-slate-400">
-                        <thead className="text-xs text-slate-700 uppercase bg-slate-100 dark:bg-slate-700 dark:text-slate-300">
-                            <tr>
-                                <th scope="col" className="px-4 py-3">Fecha</th>
-                                <th scope="col" className="px-4 py-3 text-right">Monto Pagado</th>
-                                <th scope="col" className="px-4 py-3 text-right">Interés Pagado</th>
-                                <th scope="col" className="px-4 py-3 text-right">Capital Pagado</th>
-                                <th scope="col" className="px-4 py-3 text-right">Saldo Restante</th>
-                                <th scope="col" className="px-4 py-3 text-center">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {payments.map((p, index) => (
-                                <tr key={p.id} className="bg-white dark:bg-slate-800 border-b dark:border-slate-700">
-                                    <td className="px-4 py-3 font-medium">{formatDate(p.payment_date)}</td>
-                                    <td className="px-4 py-3 text-right font-semibold text-green-600">{formatCurrency(p.amount_paid)}</td>
-                                    <td className="px-4 py-3 text-right">{formatCurrency(p.interest_paid)}</td>
-                                    <td className="px-4 py-3 text-right">{formatCurrency(p.principal_paid)}</td>
-                                    <td className="px-4 py-3 text-right font-semibold">{formatCurrency(p.balance_after_payment)}</td>
-                                    <td className="px-4 py-3 text-center">
-                                        {index === 0 && (
-                                            <button 
-                                                onClick={() => openEditPaymentModal(p, index)}
-                                                className="text-primary-600 hover:text-primary-900 dark:hover:text-primary-400 p-1"
-                                                title="Editar último pago"
-                                            >
-                                                <Icons.Pencil className="w-4 h-4" />
-                                            </button>
-                                        )}
-                                    </td>
+                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left text-slate-600 dark:text-slate-400">
+                            <thead className="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-900/50">
+                                <tr>
+                                    <th scope="col" className="px-6 py-4 font-medium">Fecha</th>
+                                    <th scope="col" className="px-6 py-4 font-medium text-right">Monto</th>
+                                    <th scope="col" className="px-6 py-4 font-medium text-right">Interés</th>
+                                    <th scope="col" className="px-6 py-4 font-medium text-right">Capital</th>
+                                    <th scope="col" className="px-6 py-4 font-medium text-right">Saldo</th>
+                                    <th scope="col" className="px-6 py-4 font-medium text-center"></th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                                {payments.map((p, index) => (
+                                    <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                        <td className="px-6 py-4">{formatDate(p.payment_date)}</td>
+                                        <td className="px-6 py-4 text-right font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(p.amount_paid)}</td>
+                                        <td className="px-6 py-4 text-right text-slate-500">{formatCurrency(p.interest_paid)}</td>
+                                        <td className="px-6 py-4 text-right text-slate-500">{formatCurrency(p.principal_paid)}</td>
+                                        <td className="px-6 py-4 text-right font-medium text-slate-700 dark:text-slate-300">{formatCurrency(p.balance_after_payment)}</td>
+                                        <td className="px-6 py-4 text-center">
+                                            {index === 0 && (
+                                                <button 
+                                                    onClick={() => openEditPaymentModal(p, index)}
+                                                    className="text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
+                                                    title="Editar último pago"
+                                                >
+                                                    <Icons.Pencil className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
                 )}
             </div>
         </div>
 
         <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Confirmar Eliminación">
-            <p className="text-slate-600 dark:text-slate-300">
-                ¿Estás seguro de que quieres eliminar el préstamo <strong className="font-semibold text-slate-800 dark:text-slate-100">{loan.name}</strong>? Todo el historial de pagos también será eliminado. Esta acción no se puede deshacer.
-            </p>
-            {deleteError && <p className="text-red-500 text-sm mt-4">{deleteError}</p>}
-            <div className="flex justify-end gap-2 pt-4 mt-4">
-                <Button type="button" variant="secondary" onClick={() => setIsDeleteModalOpen(false)} disabled={isDeleting}>Cancelar</Button>
-                <Button type="button" variant="danger" onClick={handleDeleteLoan} isLoading={isDeleting}>
-                    Sí, eliminar
-                </Button>
+            <div className="p-1">
+                <p className="text-slate-600 dark:text-slate-300 mb-6">
+                    ¿Estás seguro de que quieres eliminar <strong className="font-semibold text-slate-800 dark:text-slate-100">{loan.name}</strong>?
+                    <br/><span className="text-xs text-red-500 mt-1 block">Esta acción es irreversible y borrará todo el historial.</span>
+                </p>
+                {deleteError && <p className="text-red-500 text-sm mb-4 bg-red-50 p-2 rounded">{deleteError}</p>}
+                <div className="flex justify-end gap-3">
+                    <Button type="button" variant="secondary" onClick={() => setIsDeleteModalOpen(false)} disabled={isDeleting}>Cancelar</Button>
+                    <Button type="button" variant="danger" onClick={handleDeleteLoan} isLoading={isDeleting}>
+                        Sí, eliminar
+                    </Button>
+                </div>
             </div>
         </Modal>
 
@@ -715,7 +706,7 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
             onClose={() => setIsEditModalOpen(false)} 
             loan={loan} 
             onLoanUpdated={() => {
-                fetchLoanDetails(); // Refresca la vista actual
+                fetchLoanDetails(); 
             }}
         />
         
@@ -772,58 +763,135 @@ const DashboardPage: React.FC<{ session: Session }> = ({ session }) => {
     />;
   }
 
+  // Global Stats Calculation
+  const totalDebt = loans.reduce((sum, loan) => sum + loan.current_balance, 0);
+  const totalInitial = loans.reduce((sum, loan) => sum + loan.initial_amount, 0);
+  const totalPaid = totalInitial - totalDebt;
+  const globalProgress = totalInitial > 0 ? (totalPaid / totalInitial) * 100 : 0;
+
   return (
-    <>
-      <header className="bg-white dark:bg-slate-800 shadow-md">
-        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Mis Préstamos</h1>
-            <Button variant="secondary" onClick={() => supabase.auth.signOut()}>
+    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-900">
+      <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
+        <div className="max-w-5xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+            <div className="flex items-center gap-2">
+                 <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-bold text-lg">G</span>
+                 </div>
+                 <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Gestor de Préstamos</h1>
+            </div>
+            <Button variant="secondary" size="sm" onClick={() => supabase.auth.signOut()} className="text-slate-500">
                 <Icons.LogOut className="w-4 h-4 mr-2" />
-                Cerrar Sesión
+                Salir
             </Button>
         </div>
       </header>
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold">Resumen</h2>
-            <Button onClick={() => setIsModalOpen(true)}>
+
+      <main className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        
+        {/* Summary Section */}
+        <div className="mb-8">
+            <h2 className="text-sm uppercase tracking-wider text-slate-500 font-semibold mb-4">Resumen General</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+                    <p className="text-sm text-slate-500 mb-1">Deuda Total Activa</p>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(totalDebt)}</p>
+                </div>
+                <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+                    <p className="text-sm text-slate-500 mb-1">Capital Amortizado</p>
+                    <p className="text-2xl font-bold text-emerald-600">{formatCurrency(totalPaid)}</p>
+                </div>
+                <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-center">
+                     <div className="flex justify-between items-end mb-2">
+                        <p className="text-sm text-slate-500">Progreso Global</p>
+                        <span className="text-lg font-bold text-primary-600">{globalProgress.toFixed(0)}%</span>
+                     </div>
+                     <div className="w-full bg-slate-100 rounded-full h-2 dark:bg-slate-700">
+                        <div className="bg-primary-600 h-2 rounded-full transition-all duration-1000" style={{ width: `${globalProgress}%` }}></div>
+                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">Mis Préstamos</h2>
+            <Button onClick={() => setIsModalOpen(true)} className="shadow-md shadow-primary-600/20">
               <Icons.PlusCircle className="w-5 h-5 mr-2" />
               Nuevo Préstamo
             </Button>
-          </div>
-          {isLoading ? (
-            <div className="flex justify-center"><Spinner size="lg" /></div>
-          ) : loans.length === 0 ? (
-            <Card className="text-center">
-              <CardContent>
-                <h3 className="text-lg font-medium">No tienes préstamos registrados</h3>
-                <p className="text-slate-500 dark:text-slate-400 mt-1">¡Agrega tu primer préstamo para empezar!</p>
-                <Button onClick={() => setIsModalOpen(true)} className="mt-4">
+        </div>
+
+        {isLoading ? (
+            <div className="flex justify-center py-20"><Spinner size="lg" /></div>
+        ) : loans.length === 0 ? (
+            <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-3xl border border-dashed border-slate-300 dark:border-slate-600">
+                <div className="mx-auto w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mb-4">
+                    <Icons.PlusCircle className="w-8 h-8 text-slate-400" />
+                </div>
+                <h3 className="text-lg font-medium text-slate-900 dark:text-white">No tienes préstamos activos</h3>
+                <p className="text-slate-500 dark:text-slate-400 mt-1 mb-6">Comienza agregando tu primer préstamo para tomar el control.</p>
+                <Button onClick={() => setIsModalOpen(true)}>
                   Agregar Préstamo
                 </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {loans.map(loan => (
-                <Card key={loan.id} className="hover:shadow-xl transition-shadow cursor-pointer" onClick={() => setSelectedLoan(loan)}>
-                  <CardContent className="flex justify-between items-center">
-                    <div>
-                      <h3 className="font-bold text-lg text-primary-600">{loan.name}</h3>
-                      <p className="text-slate-500 dark:text-slate-400">Saldo Actual:</p>
-                      <p className="text-2xl font-semibold">{formatCurrency(loan.current_balance)}</p>
-                    </div>
-                    <Icons.ChevronRight className="w-8 h-8 text-slate-400" />
-                  </CardContent>
-                </Card>
-              ))}
             </div>
-          )}
-        </div>
+        ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {loans.map(loan => {
+                const progress = loan.initial_amount > 0 
+                    ? ((loan.initial_amount - loan.current_balance) / loan.initial_amount) * 100 
+                    : 0;
+                
+                return (
+                <div 
+                    key={loan.id} 
+                    className="group bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-lg hover:border-primary-100 dark:hover:border-primary-900 transition-all duration-300 cursor-pointer relative overflow-hidden"
+                    onClick={() => setSelectedLoan(loan)}
+                >
+                  <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                       <svg width="100" height="100" viewBox="0 0 24 24" fill="currentColor" className="text-primary-600 transform rotate-12 translate-x-4 -translate-y-4">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z"/>
+                       </svg>
+                  </div>
+
+                  <div className="relative z-10">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 className="font-bold text-xl text-slate-900 dark:text-white mb-1">{loan.name}</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wide">
+                                {formatCurrency(loan.initial_amount)} Inicial
+                            </p>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${progress >= 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'}`}>
+                            {progress.toFixed(0)}%
+                        </span>
+                      </div>
+
+                      <div className="mb-6">
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Saldo Pendiente</p>
+                        <p className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{formatCurrency(loan.current_balance)}</p>
+                      </div>
+
+                      <div className="w-full bg-slate-100 rounded-full h-2.5 dark:bg-slate-700 overflow-hidden">
+                        <div 
+                            className={`h-2.5 rounded-full transition-all duration-1000 ${progress >= 100 ? 'bg-emerald-500' : 'bg-primary-600'}`} 
+                            style={{ width: `${progress}%` }}
+                        ></div>
+                      </div>
+                      
+                      <div className="mt-4 flex justify-between items-center text-xs text-slate-400">
+                          <span>{loan.interest_rate}% interés</span>
+                          <span className="group-hover:translate-x-1 transition-transform text-primary-600 font-medium flex items-center">
+                              Ver detalles &rarr;
+                          </span>
+                      </div>
+                  </div>
+                </div>
+              )})}
+            </div>
+        )}
+        
         <AddLoanModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onLoanAdded={fetchLoans} user_id={session.user.id}/>
       </main>
-    </>
+    </div>
   );
 };
 
