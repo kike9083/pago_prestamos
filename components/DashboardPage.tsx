@@ -755,6 +755,11 @@ const DashboardPage: React.FC<{ session: Session }> = ({ session }) => {
     fetchLoans();
   };
 
+  // Derive display name
+  const displayName = session.user.user_metadata?.full_name || 
+                      session.user.email?.split('@')[0] || 
+                      'Usuario';
+
   if (selectedLoan) {
     return <LoanDetail 
         loan={selectedLoan} 
@@ -779,10 +784,16 @@ const DashboardPage: React.FC<{ session: Session }> = ({ session }) => {
                  </div>
                  <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Gestor de Préstamos</h1>
             </div>
-            <Button variant="secondary" size="sm" onClick={() => supabase.auth.signOut()} className="text-slate-500">
-                <Icons.LogOut className="w-4 h-4 mr-2" />
-                Salir
-            </Button>
+            <div className="flex items-center gap-4">
+                <div className="text-right hidden sm:block">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Hola,</p>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">{displayName}</p>
+                </div>
+                <Button variant="secondary" size="sm" onClick={() => supabase.auth.signOut()} className="text-slate-500">
+                    <Icons.LogOut className="w-4 h-4 mr-2" />
+                    Salir
+                </Button>
+            </div>
         </div>
       </header>
 
