@@ -82,7 +82,7 @@ export const Input: FC<InputProps> = React.forwardRef<HTMLInputElement, InputPro
     <input
       id={id}
       ref={ref}
-      className="block w-full rounded-md border-slate-300 bg-white dark:bg-slate-800 dark:border-slate-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm p-2"
+      className="block w-full rounded-md border-slate-300 bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-white text-slate-900 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm p-2"
       {...props}
     />
   </div>

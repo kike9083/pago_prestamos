@@ -77,13 +77,13 @@ const AuthPage: React.FC = () => {
                 {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
               </Button>
             </form>
-            
+
             {error && <p className="mt-4 text-center text-sm text-red-500">{error}</p>}
             {message && <p className="mt-4 text-center text-sm text-green-500">{message}</p>}
           </CardContent>
         </Card>
       </div>
-    </div>
+    </div >
   );
 };
 

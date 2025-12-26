@@ -523,7 +523,7 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
 
     return (
         <>
-            <div className="p-4 sm:p-6">
+            <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-4 sm:p-6">
                 <div className="flex justify-between items-center mb-4">
                     <button onClick={onBack} className="text-sm text-primary-600 hover:underline flex items-center p-2 -ml-2">
                         &larr; Volver atrás
