@@ -23,6 +23,7 @@ const formatDate = (dateString: string | null | undefined) => {
 // AddLoanModal Component
 const AddLoanModal: FC<{ isOpen: boolean; onClose: () => void; onLoanAdded: () => void; user_id: string; }> = ({ isOpen, onClose, onLoanAdded, user_id }) => {
     const [loanName, setLoanName] = useState('');
+    const [phone, setPhone] = useState('');
     const [initialAmount, setInitialAmount] = useState('');
     const [interestRate, setInterestRate] = useState('');
     const [termMonths, setTermMonths] = useState('');
@@ -72,6 +73,7 @@ const AddLoanModal: FC<{ isOpen: boolean; onClose: () => void; onLoanAdded: () =
                     ...loanData,
                     suggested_payment: suggestedPayment,
                     user_id,
+                    phone,
                     current_balance: loanData.initial_amount, // Balance inicial es el monto total
                 })
                 .select()
@@ -99,6 +101,7 @@ const AddLoanModal: FC<{ isOpen: boolean; onClose: () => void; onLoanAdded: () =
         <Modal isOpen={isOpen} onClose={onClose} title="Agregar Nuevo Préstamo">
             <form onSubmit={handleSubmit} className="space-y-4">
                 <Input id="loanName" label="Nombre del Préstamo" value={loanName} onChange={e => setLoanName(e.target.value)} required />
+                <Input id="phone" label="Teléfono WhatsApp (Ej: 521...)" type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Código de país + número" />
                 <Input id="initialAmount" label="Monto Inicial ($)" type="number" step="0.01" value={initialAmount} onChange={e => setInitialAmount(e.target.value)} required />
                 <Input id="interestRate" label="Tasa de Interés Quincenal (%)" type="number" step="0.01" value={interestRate} onChange={e => setInterestRate(e.target.value)} required />
                 <Input id="termMonths" label="Plazo Sugerido (meses)" type="number" value={termMonths} onChange={e => setTermMonths(e.target.value)} required />
@@ -116,6 +119,7 @@ const AddLoanModal: FC<{ isOpen: boolean; onClose: () => void; onLoanAdded: () =
 // EditLoanModal Component
 const EditLoanModal: FC<{ isOpen: boolean; onClose: () => void; loan: Loan; onLoanUpdated: () => void; }> = ({ isOpen, onClose, loan, onLoanUpdated }) => {
     const [name, setName] = useState(loan.name);
+    const [phone, setPhone] = useState(loan.phone || '');
     const [interestRate, setInterestRate] = useState(loan.interest_rate.toString());
     const [termMonths, setTermMonths] = useState(loan.term_months.toString());
     const [isLoading, setIsLoading] = useState(false);
@@ -124,6 +128,7 @@ const EditLoanModal: FC<{ isOpen: boolean; onClose: () => void; loan: Loan; onLo
     useEffect(() => {
         if (isOpen) {
             setName(loan.name);
+            setPhone(loan.phone || '');
             setInterestRate(loan.interest_rate.toString());
             setTermMonths(loan.term_months.toString());
             setError('');
@@ -161,6 +166,7 @@ const EditLoanModal: FC<{ isOpen: boolean; onClose: () => void; loan: Loan; onLo
                 .from('loans')
                 .update({
                     name: name.trim(),
+                    phone: phone.trim(),
                     interest_rate: parsedRate,
                     term_months: parsedTerm,
                     suggested_payment: newSuggestedPayment
@@ -182,6 +188,7 @@ const EditLoanModal: FC<{ isOpen: boolean; onClose: () => void; loan: Loan; onLo
         <Modal isOpen={isOpen} onClose={onClose} title="Editar Préstamo">
             <form onSubmit={handleSubmit} className="space-y-4">
                 <Input id="edit-name" label="Nombre" value={name} onChange={e => setName(e.target.value)} required />
+                <Input id="edit-phone" label="Teléfono WhatsApp" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Ej: 521..." />
                 <Input id="edit-rate" label="Tasa de Interés Quincenal (%)" type="number" step="0.01" value={interestRate} onChange={e => setInterestRate(e.target.value)} required />
                 <Input id="edit-term" label="Plazo (meses)" type="number" value={termMonths} onChange={e => setTermMonths(e.target.value)} required />
                 {error && <p className="text-red-500 text-sm">{error}</p>}
@@ -519,9 +526,29 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
             <div className="p-4 sm:p-6">
                 <div className="flex justify-between items-center mb-4">
                     <button onClick={onBack} className="text-sm text-primary-600 hover:underline flex items-center p-2 -ml-2">
-                        &larr; Volver a todos los préstamos
+                        &larr; Volver atrás
                     </button>
                     <div className="flex gap-2">
+                        {loan.phone && (
+                            <Button variant="secondary" onClick={() => {
+                                const lastPayment = payments[0];
+                                const message = `*Estado de Cuenta - ${loan.name}*\n\n` +
+                                    `Monto Inicial: ${formatCurrency(loan.initial_amount)}\n` +
+                                    `Saldo Actual: ${formatCurrency(loan.current_balance)}\n` +
+                                    `Tasa: ${loan.interest_rate}%\n` +
+                                    (lastPayment ?
+                                        `--------------------------\n` +
+                                        `*Último Pago:* ${formatCurrency(lastPayment.amount_paid)}\n` +
+                                        `Fecha: ${formatDate(lastPayment.payment_date)}\n` +
+                                        `Interés pagado: ${formatCurrency(lastPayment.interest_paid)}\n` +
+                                        `Abono a capital: ${formatCurrency(lastPayment.principal_paid)}\n` : '') +
+                                    `\n¡Gracias por tu cumplimiento!`;
+                                window.open(`https://wa.me/${loan.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+                            }} className="!bg-[#25D366] hover:!bg-[#20ba59] border-none !text-white shadow-md shadow-emerald-500/20 font-bold px-4">
+                                <Icons.MessageCircle className="w-5 h-5 mr-2" />
+                                <span>WhatsApp</span>
+                            </Button>
+                        )}
                         <Button variant="secondary" onClick={() => setIsEditModalOpen(true)}>
                             <Icons.Pencil className="w-4 h-4 mr-2" />
                             Editar
@@ -735,20 +762,29 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
 };
 
 // DashboardPage Component
-const DashboardPage: React.FC<{ session: Session }> = ({ session }) => {
+const DashboardPage: React.FC<{
+    session: Session;
+}> = ({ session }) => {
     const [loans, setLoans] = useState<Loan[]>([]);
     const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isTipsOpen, setIsTipsOpen] = useState(false);
+    const [isGuideOpen, setIsGuideOpen] = useState(false);
 
     const fetchLoans = useCallback(async () => {
         setIsLoading(true);
-        const { data } = await supabase
+        const { data, error } = await supabase
             .from('loans')
             .select('*')
             .eq('user_id', session.user.id)
             .order('created_at', { ascending: false });
-        if (data) setLoans(data);
+
+        if (error) {
+            console.error('Error fetching loans:', error);
+        } else {
+            setLoans(data || []);
+        }
         setIsLoading(false);
     }, [session.user.id]);
 
@@ -791,13 +827,27 @@ const DashboardPage: React.FC<{ session: Session }> = ({ session }) => {
                         <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Gestor de Préstamos</h1>
                     </div>
                     <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => setIsTipsOpen(true)}
+                            className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors"
+                            title="Consejos Financieros"
+                        >
+                            <Icons.Lightbulb className="w-5 h-5" />
+                        </button>
+                        <button
+                            onClick={() => setIsGuideOpen(true)}
+                            className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 transition-colors"
+                            title="Guía de Uso"
+                        >
+                            <Icons.BookOpen className="w-5 h-5" />
+                        </button>
                         <div className="text-right hidden sm:block">
                             <p className="text-xs text-slate-500 dark:text-slate-400">Hola,</p>
                             <p className="text-sm font-semibold text-slate-900 dark:text-white">{displayName}</p>
                         </div>
                         <Button variant="secondary" size="sm" onClick={() => supabase.auth.signOut()} className="text-slate-500">
                             <Icons.LogOut className="w-4 h-4 mr-2" />
-                            Salir
+                            <span className="hidden xs:inline">Salir</span>
                         </Button>
                     </div>
                 </div>
@@ -805,17 +855,16 @@ const DashboardPage: React.FC<{ session: Session }> = ({ session }) => {
 
             <main className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
 
-                {/* Summary Section */}
                 <div className="mb-8">
                     <h2 className="text-sm uppercase tracking-wider text-slate-500 font-semibold mb-4">Resumen General</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
                             <p className="text-sm text-slate-500 mb-1">Deuda Total Activa</p>
                             <p className="text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(totalDebt)}</p>
                         </div>
                         <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
                             <p className="text-sm text-slate-500 mb-1">Capital Amortizado</p>
-                            <p className="text-2xl font-bold text-emerald-600">{formatCurrency(totalPaid)}</p>
+                            <p className="text-2xl font-bold text-emerald-600 text-emerald-600">{formatCurrency(totalPaid)}</p>
                         </div>
                         <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-center">
                             <div className="flex justify-between items-end mb-2">
@@ -908,6 +957,86 @@ const DashboardPage: React.FC<{ session: Session }> = ({ session }) => {
                 )}
 
                 <AddLoanModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onLoanAdded={fetchLoans} user_id={session.user.id} />
+
+                {/* Modals for Tips and Guide */}
+                <Modal isOpen={isTipsOpen} onClose={() => setIsTipsOpen(false)} title="Consejos Financieros">
+                    <div className="space-y-4">
+                        <div className="bg-indigo-50 dark:bg-indigo-900/30 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800">
+                            <h4 className="font-bold text-indigo-900 dark:text-indigo-100 mb-2 flex items-center">
+                                <Icons.Lightbulb className="w-4 h-4 mr-2" />
+                                Prioriza por Interés
+                            </h4>
+                            <p className="text-sm text-indigo-700 dark:text-indigo-300">Paga primero las deudas con la tasa de interés más alta. Esto te ahorrará miles de pesos en el largo plazo.</p>
+                        </div>
+                        <div className="bg-emerald-50 dark:bg-emerald-900/30 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800">
+                            <h4 className="font-bold text-emerald-900 dark:text-emerald-100 mb-2 flex items-center">
+                                <Icons.Zap className="w-4 h-4 mr-2" />
+                                Pagos al Capital
+                            </h4>
+                            <p className="text-sm text-emerald-700 dark:text-emerald-300">Usa bonos o dinero extra para "pagos extraordinarios". Estos van 100% a la deuda y reducen el tiempo del crédito.</p>
+                        </div>
+                        <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
+                            <h4 className="font-bold text-blue-900 dark:text-blue-100 mb-2 flex items-center">
+                                <Icons.CheckCircle className="w-4 h-4 mr-2" />
+                                Método Bola de Nieve
+                            </h4>
+                            <p className="text-sm text-blue-700 dark:text-blue-300">Paga las deudas pequeñas primero. Sentir que liquidas una cuenta te da la motivación para seguir con las grandes.</p>
+                        </div>
+                        <div className="bg-amber-50 dark:bg-amber-900/30 p-4 rounded-xl border border-amber-100 dark:border-amber-800">
+                            <h4 className="font-bold text-amber-900 dark:text-amber-100 mb-2 flex items-center">
+                                <Icons.X className="w-4 h-4 mr-2" />
+                                Controla Gastos Hormiga
+                            </h4>
+                            <p className="text-sm text-amber-700 dark:text-amber-300">Cafés, snacks y suscripciones innecesarias suman mucho. Ese dinero puede ser la clave para salir de deudas.</p>
+                        </div>
+                        <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-2 flex items-center">
+                                <Icons.Shield className="w-4 h-4 mr-2" />
+                                No te endeudes más
+                            </h4>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">La regla de oro: No saques créditos nuevos hasta que hayas liquidado al menos el 50% de lo que debes hoy.</p>
+                        </div>
+                    </div>
+                    <div className="mt-6">
+                        <Button className="w-full" onClick={() => setIsTipsOpen(false)}>Entendido</Button>
+                    </div>
+                </Modal>
+
+                <Modal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} title="Guía de Uso Rápida">
+                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                        <div className="flex gap-4">
+                            <div className="flex-shrink-0 w-8 h-8 bg-primary-100 dark:bg-primary-900/30 text-primary-600 rounded-full flex items-center justify-center font-bold">1</div>
+                            <div>
+                                <h4 className="font-bold text-slate-800 dark:text-slate-200">Crea tu Préstamo</h4>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">Toca el botón (+) y anota el monto y tasa. ¡Es el primer paso!</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-4">
+                            <div className="flex-shrink-0 w-8 h-8 bg-primary-100 dark:bg-primary-900/30 text-primary-600 rounded-full flex items-center justify-center font-bold">2</div>
+                            <div>
+                                <h4 className="font-bold text-slate-800 dark:text-slate-200">Anota tus Pagos</h4>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">Cada que pagues, regístralo aquí para que el saldo baje automáticamente.</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-4">
+                            <div className="flex-shrink-0 w-8 h-8 bg-primary-100 dark:bg-primary-900/30 text-primary-600 rounded-full flex items-center justify-center font-bold">3</div>
+                            <div>
+                                <h4 className="font-bold text-slate-800 dark:text-slate-200">WhatsApp</h4>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">Envía el estado de cuenta a tus deudores con un solo toque.</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-4">
+                            <div className="flex-shrink-0 w-8 h-8 bg-primary-100 dark:bg-primary-900/30 text-primary-600 rounded-full flex items-center justify-center font-bold">4</div>
+                            <div>
+                                <h4 className="font-bold text-slate-800 dark:text-slate-200">Modo Noche</h4>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">Usa el ícono de la luna para descansar tu vista de noche.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="mt-6">
+                        <Button className="w-full" onClick={() => setIsGuideOpen(false)}>¡Listo!</Button>
+                    </div>
+                </Modal>
             </main>
         </div>
     );

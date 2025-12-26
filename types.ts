@@ -14,6 +14,7 @@ export interface Loan {
   start_date: string;
   suggested_payment: number;
   last_payment_date?: string | null;
+  phone?: string | null;
   created_at: string;
 }
 
@@ -29,9 +30,10 @@ export interface Payment {
 }
 
 export type NewLoan = {
-    name: string;
-    initial_amount: number;
-    interest_rate: number;
-    term_months: number;
-    start_date: string;
+  name: string;
+  initial_amount: number;
+  interest_rate: number;
+  term_months: number;
+  start_date: string;
+  phone?: string;
 };
