@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">gestor-de-prestamos</string>
+    <string name="title_activity_main">gestor-de-prestamos</string>
+    <string name="package_name">com.gestor_de_prestamos.app</string>
+    <string name="custom_url_scheme">com.gestor_de_prestamos.app</string>
+</resources>
