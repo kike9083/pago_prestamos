@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Realizar un Pago</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#554AF0", // Based on the purple button and accents
+                        "background-light": "#F3F4F6", // Light gray for light mode
+                        "background-dark": "#181E2E", // Dark blue/gray from screenshots
+                        "card-light": "#FFFFFF",
+                        "card-dark": "#20293C", // Slightly lighter dark blue for cards
+                        "input-dark": "#2A3447",
+                        "success": "#10B981", // Green for paid amounts
+                        "text-secondary-dark": "#9CA3AF",
+                        "text-secondary-light": "#6B7280",
+                    },
+                    fontFamily: {
+                        display: ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.75rem", // 12px
+                        'xl': "1rem", // 16px
+                    },
+                },
+            },
+        };
+    </script>
+<style>.custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: rgba(156, 163, 175, 0.5);
+            border-radius: 20px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-gray-900 dark:text-white antialiased transition-colors duration-200">
+<div class="max-w-md mx-auto min-h-screen flex flex-col relative overflow-hidden">
+<header class="pt-6 pb-4 px-4 flex items-center justify-between sticky top-0 z-10 bg-background-light dark:bg-background-dark">
+<button class="p-2 rounded-lg bg-white dark:bg-card-dark text-gray-600 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+<span class="material-icons text-primary text-sm flex items-center">arrow_back_ios_new</span>
+</button>
+<div class="flex gap-2">
+<button class="w-10 h-10 rounded-xl bg-success text-white flex items-center justify-center shadow-md">
+<span class="material-icons">refresh</span>
+</button>
+<button class="w-10 h-10 rounded-xl bg-gray-200 dark:bg-card-dark text-gray-500 dark:text-gray-400 flex items-center justify-center shadow-sm">
+<span class="material-icons">edit</span>
+</button>
+<button class="w-10 h-10 rounded-xl bg-red-500 text-white flex items-center justify-center shadow-md">
+<span class="material-icons">delete</span>
+</button>
+</div>
+</header>
+<main class="flex-1 px-4 pb-6 space-y-6 overflow-y-auto custom-scrollbar">
+<section class="bg-white dark:bg-card-dark rounded-2xl p-5 shadow-lg border border-gray-100 dark:border-gray-800">
+<h2 class="text-lg font-bold mb-4">Realizar un Pago</h2>
+<div class="space-y-4">
+<div>
+<label class="block text-xs font-medium text-text-secondary-light dark:text-text-secondary-dark mb-1 uppercase tracking-wider">Monto a Pagar</label>
+<div class="relative">
+<span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">$</span>
+<input class="w-full bg-gray-50 dark:bg-input-dark border-transparent focus:border-primary focus:ring-0 rounded-xl py-3 pl-8 pr-4 text-lg font-semibold text-gray-900 dark:text-white placeholder-gray-400 transition-all" type="number" value="119.25"/>
+</div>
+</div>
+<div>
+<label class="block text-xs font-medium text-text-secondary-light dark:text-text-secondary-dark mb-1 uppercase tracking-wider">Fecha del Pago</label>
+<div class="relative">
+<input class="w-full bg-gray-50 dark:bg-input-dark border-transparent focus:border-primary focus:ring-0 rounded-xl py-3 px-4 text-base text-gray-900 dark:text-white transition-all [color-scheme:light] dark:[color-scheme:dark]" type="date" value="2025-12-28"/>
+</div>
+</div>
+<button class="w-full bg-primary hover:bg-opacity-90 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-primary/30 transition-all active:scale-[0.98]">
+                        Registrar Pago
+                    </button>
+<div class="flex items-center gap-3 pt-1">
+<div class="relative flex items-center">
+<input class="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-gray-300 dark:border-gray-600 bg-transparent checked:border-primary checked:bg-primary transition-all" id="extra" type="checkbox"/>
+<span class="absolute text-white opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+<svg class="h-3.5 w-3.5" fill="currentColor" stroke="currentColor" stroke-width="1" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+<path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path>
+</svg>
+</span>
+</div>
+<label class="text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none" for="extra">
+                            Pago Extraordinario (100% a capital)
+                        </label>
+</div>
+</div>
+</section>
+<section>
+<h3 class="text-lg font-bold mb-3 pl-1">Historial de Pagos</h3>
+<div class="bg-white dark:bg-card-dark rounded-2xl shadow-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
+<div class="grid grid-cols-4 px-4 py-3 bg-gray-50 dark:bg-[#252f45] border-b border-gray-100 dark:border-gray-700/50">
+<div class="text-[10px] font-bold text-text-secondary-light dark:text-text-secondary-dark uppercase tracking-wider">Fecha</div>
+<div class="text-[10px] font-bold text-text-secondary-light dark:text-text-secondary-dark uppercase tracking-wider text-right">Monto</div>
+<div class="text-[10px] font-bold text-text-secondary-light dark:text-text-secondary-dark uppercase tracking-wider text-right">Interés</div>
+<div class="text-[10px] font-bold text-text-secondary-light dark:text-text-secondary-dark uppercase tracking-wider text-right">Capital</div>
+</div>
+<div class="divide-y divide-gray-100 dark:divide-gray-700/50 max-h-[400px] overflow-y-auto custom-scrollbar">
+<div class="grid grid-cols-4 px-4 py-4 items-center hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+<div class="flex flex-col">
+<span class="text-sm font-medium">17</span>
+<span class="text-xs text-text-secondary-light dark:text-text-secondary-dark">dic 2025</span>
+</div>
+<div class="text-right text-sm font-bold text-success">$60.00</div>
+<div class="text-right text-sm text-text-secondary-light dark:text-text-secondary-dark">$20.26</div>
+<div class="text-right text-sm text-text-secondary-light dark:text-text-secondary-dark">$39.74</div>
+</div>
+<div class="grid grid-cols-4 px-4 py-4 items-center hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+<div class="flex flex-col">
+<span class="text-sm font-medium">16</span>
+<span class="text-xs text-text-secondary-light dark:text-text-secondary-dark">dic 2025</span>
+</div>
+<div class="text-right text-sm font-bold text-success">$0.10</div>
+<div class="text-right text-sm text-text-secondary-light dark:text-text-secondary-dark">$0.00</div>
+<div class="text-right text-sm text-text-secondary-light dark:text-text-secondary-dark">$0.10</div>
+</div>
+<div class="grid grid-cols-4 px-4 py-4 items-center hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+<div class="flex flex-col">
+<span class="text-sm font-medium">30</span>
+<span class="text-xs text-text-secondary-light dark:text-text-secondary-dark">nov 2025</span>
+</div>
+<div class="text-right text-sm font-bold text-success">$60.00</div>
+<div class="text-right text-sm text-text-secondary-light dark:text-text-secondary-dark">$22.16</div>
+<div class="text-right text-sm text-text-secondary-light dark:text-text-secondary-dark">$37.84</div>
+</div>
+<div class="grid grid-cols-4 px-4 py-4 items-center hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+<div class="flex flex-col">
+<span class="text-sm font-medium">19</span>
+<span class="text-xs text-text-secondary-light dark:text-text-secondary-dark">nov 2025</span>
+</div>
+<div class="text-right text-sm font-bold text-success">$60.00</div>
+<div class="text-right text-sm text-text-secondary-light dark:text-text-secondary-dark">$37.57</div>
+<div class="text-right text-sm text-text-secondary-light dark:text-text-secondary-dark">$22.43</div>
+</div>
+<div class="grid grid-cols-4 px-4 py-4 items-center hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+<div class="flex flex-col">
+<span class="text-sm font-medium">19</span>
+<span class="text-xs text-text-secondary-light dark:text-text-secondary-dark">nov 2025</span>
+</div>
+<div class="text-right text-sm font-bold text-success">$60.00</div>
+<div class="text-right text-sm text-text-secondary-light dark:text-text-secondary-dark">$36.45</div>
+<div class="text-right text-sm text-text-secondary-light dark:text-text-secondary-dark">$23.55</div>
+</div>
+<div class="grid grid-cols-4 px-4 py-4 items-center hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+<div class="flex flex-col">
+<span class="text-sm font-medium">19</span>
+<span class="text-xs text-text-secondary-light dark:text-text-secondary-dark">nov 2025</span>
+</div>
+<div class="text-right text-sm font-bold text-success">$60.00</div>
+<div class="text-right text-sm text-text-secondary-light dark:text-text-secondary-dark">$35.28</div>
+<div class="text-right text-sm text-text-secondary-light dark:text-text-secondary-dark">$24.72</div>
+</div>
+<div class="grid grid-cols-4 px-4 py-4 items-center hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+<div class="flex flex-col">
+<span class="text-sm font-medium">19</span>
+<span class="text-xs text-text-secondary-light dark:text-text-secondary-dark">nov 2025</span>
+</div>
+<div class="text-right text-sm font-bold text-success">$60.00</div>
+<div class="text-right text-sm text-text-secondary-light dark:text-text-secondary-dark">$34.04</div>
+<div class="text-right text-sm text-text-secondary-light dark:text-text-secondary-dark">$25.96</div>
+</div>
+<div class="grid grid-cols-4 px-4 py-4 items-center hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+<div class="flex flex-col">
+<span class="text-sm font-medium">19</span>
+<span class="text-xs text-text-secondary-light dark:text-text-secondary-dark">nov 2025</span>
+</div>
+<div class="text-right text-sm font-bold text-success">$86.20</div>
+<div class="text-right text-sm text-text-secondary-light dark:text-text-secondary-dark">$25.21</div>
+<div class="text-right text-sm text-text-secondary-light dark:text-text-secondary-dark">$60.99</div>
+</div>
+</div>
+<div class="h-4 bg-gradient-to-t from-gray-50 dark:from-[#252f45] to-transparent pointer-events-none"></div>
+</div>
+</section>
+</main>
+<nav class="bg-white dark:bg-card-dark border-t border-gray-200 dark:border-gray-800 px-6 py-3 flex justify-between items-center z-10">
+<button class="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 hover:text-primary transition-colors">
+<span class="material-icons text-2xl">menu</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-primary">
+<div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+<span class="material-icons text-2xl">circle</span>
+</div>
+</button>
+<button class="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 hover:text-primary transition-colors">
+<span class="material-icons text-2xl">undo</span>
+</button>
+</nav>
+</div>
+<button class="fixed bottom-6 right-6 z-50 p-3 rounded-full bg-primary text-white shadow-xl hover:scale-110 transition-transform" onclick="document.documentElement.classList.toggle('dark')">
+<span class="material-icons dark:hidden">dark_mode</span>
+<span class="material-icons hidden dark:block">light_mode</span>
+</button>
+
+</body></html>

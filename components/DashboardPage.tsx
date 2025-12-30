@@ -522,15 +522,20 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
 
 
     return (
-        <>
-            <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-4 sm:p-6">
-                <div className="flex justify-between items-center mb-4">
-                    <button onClick={onBack} className="text-sm text-primary-600 hover:underline flex items-center p-2 -ml-2">
-                        &larr; Volver atrás
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-10 transition-colors">
+            <div className="sticky top-0 z-20 bg-white/90 dark:bg-slate-800/90 backdrop-blur-lg border-b border-slate-200 dark:border-slate-700 pt-[calc(var(--safe-area-top)+8px)]">
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap justify-between items-center gap-y-3">
+                    <button onClick={onBack} className="text-sm font-bold text-primary-600 hover:text-primary-700 flex items-center gap-2 transition-colors py-2 group">
+                        <div className="bg-primary-50 dark:bg-primary-900/40 p-1.5 rounded-lg group-hover:bg-primary-100 transition-colors">
+                            <Icons.ChevronRight className="w-4 h-4 rotate-180" />
+                        </div>
+                        <span className="min-[400px]:inline hidden">Volver atrás</span>
+                        <span className="min-[400px]:hidden inline">Volver</span>
                     </button>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
                         {loan.phone && (
                             <Button variant="secondary" onClick={() => {
+                                // ... (keeping existing logic)
                                 const lastPayment = payments[0];
                                 const message = `*Estado de Cuenta - ${loan.name}*\n\n` +
                                     `Monto Inicial: ${formatCurrency(loan.initial_amount)}\n` +
@@ -544,46 +549,55 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
                                         `Abono a capital: ${formatCurrency(lastPayment.principal_paid)}\n` : '') +
                                     `\n¡Gracias por tu cumplimiento!`;
                                 window.open(`https://wa.me/${loan.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
-                            }} className="!bg-[#25D366] hover:!bg-[#20ba59] border-none !text-white shadow-md shadow-emerald-500/20 font-bold px-4">
-                                <Icons.MessageCircle className="w-5 h-5 mr-2" />
-                                <span>WhatsApp</span>
+                            }} className="!bg-[#25D366] hover:!bg-[#20ba59] border-none !text-white shadow-md shadow-emerald-500/20 font-bold px-3 min-[450px]:px-4 !rounded-xl h-10">
+                                <Icons.MessageCircle className="w-5 h-5 min-[450px]:mr-2" />
+                                <span className="hidden min-[450px]:inline text-sm">WhatsApp</span>
                             </Button>
                         )}
-                        <Button variant="secondary" onClick={() => setIsEditModalOpen(true)}>
-                            <Icons.Pencil className="w-4 h-4 mr-2" />
-                            Editar
+                        <Button variant="secondary" onClick={() => setIsEditModalOpen(true)} className="!rounded-xl px-3 min-[450px]:px-4 h-10" aria-label="Editar">
+                            <Icons.Pencil className="w-4 h-4 min-[450px]:mr-2" />
+                            <span className="hidden min-[450px]:inline text-sm">Editar</span>
                         </Button>
-                        <Button variant="danger" onClick={() => setIsDeleteModalOpen(true)}>
-                            <Icons.Trash2 className="w-4 h-4 mr-2" />
-                            Eliminar
+                        <Button variant="danger" onClick={() => setIsDeleteModalOpen(true)} className="!rounded-xl px-3 min-[450px]:px-4 h-10" aria-label="Eliminar">
+                            <Icons.Trash2 className="w-4 h-4 min-[450px]:mr-2" />
+                            <span className="hidden min-[450px]:inline text-sm">Eliminar</span>
                         </Button>
                     </div>
                 </div>
+            </div>
 
+            <div className="max-w-5xl mx-auto p-4 sm:p-6">
                 <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex justify-between items-center">
-                        <div>
-                            <p className="text-sm text-slate-500 mb-1">Saldo Inicial</p>
-                            <p className="text-2xl font-bold text-slate-700 dark:text-slate-300">{formatCurrency(loan.initial_amount)}</p>
+                    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md transition-shadow">
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Saldo Inicial</p>
+                                <p className="text-xl font-bold text-slate-700 dark:text-slate-300">{formatCurrency(loan.initial_amount)}</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Capital Pagado</p>
+                                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(principalPaid)}</p>
+                            </div>
                         </div>
-                        <div className="text-right">
-                            <p className="text-sm text-slate-500 mb-1">Saldo Restante</p>
-                            <p className="text-2xl font-bold text-primary-600">{formatCurrency(loan.current_balance)}</p>
-                        </div>
-                    </div>
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
-                        <p className="text-sm text-slate-500 mb-1">Progreso de Pago</p>
-                        <div className="flex items-end gap-2">
-                            <p className="text-3xl font-bold text-slate-800 dark:text-slate-200">{progress.toFixed(1)}%</p>
-                            <p className="text-sm text-slate-400 mb-1.5">completado</p>
-                        </div>
-                        <div className="w-full bg-slate-100 rounded-full h-1.5 mt-3 dark:bg-slate-700">
-                            <div className="bg-primary-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                        <div className="pt-4 border-t border-slate-50 dark:border-slate-700/50">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-primary-500 mb-1">Saldo Restante</p>
+                            <p className="text-3xl font-black text-primary-600 dark:text-primary-400 tracking-tight">{formatCurrency(loan.current_balance)}</p>
                         </div>
                     </div>
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
-                        <p className="text-sm text-slate-500 mb-1">Intereses Pagados</p>
-                        <p className="text-3xl font-bold text-slate-800 dark:text-slate-200">{formatCurrency(payments.reduce((acc, p) => acc + p.interest_paid, 0))}</p>
+                    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md transition-shadow flex flex-col justify-center">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Progreso del Préstamo</p>
+                        <div className="flex items-end gap-2 mb-2">
+                            <p className="text-4xl font-black text-slate-800 dark:text-slate-200">{progress.toFixed(1)}%</p>
+                            <p className="text-xs text-slate-400 font-medium mb-1.5 uppercase tracking-wide">Pagado</p>
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-3 dark:bg-slate-700 overflow-hidden">
+                            <div className="bg-primary-500 h-full rounded-full transition-all duration-1000 ease-out shadow-[0_0_12px_rgba(99,102,241,0.4)]" style={{ width: `${progress}%` }}></div>
+                        </div>
+                    </div>
+                    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md transition-shadow">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Resumen de Intereses</p>
+                        <p className="text-3xl font-black text-slate-800 dark:text-slate-200 mb-1">{formatCurrency(payments.reduce((acc, p) => acc + p.interest_paid, 0))}</p>
+                        <p className="text-xs text-slate-400 font-medium">Intereses acumulados pagados</p>
                     </div>
                 </div>
 
@@ -757,7 +771,7 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
                     }}
                 />
             )}
-        </>
+        </div>
     );
 };
 
@@ -817,11 +831,11 @@ const DashboardPage: React.FC<{
     const globalProgress = totalInitial > 0 ? (totalPaid / totalInitial) * 100 : 0;
 
     return (
-        <div className="min-h-screen bg-slate-50/50 dark:bg-slate-900">
-            <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
-                <div className="max-w-5xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-10 transition-colors">
+            <header className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 pt-[var(--safe-area-top)]">
+                <div className="max-w-5xl mx-auto min-h-[4rem] px-4 sm:px-6 lg:px-8 flex justify-between items-center py-2 flex-wrap gap-2">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
+                        <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center shadow-lg shadow-primary-600/20">
                             <span className="text-white font-bold text-lg">G</span>
                         </div>
                         <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Gestor de Préstamos</h1>
@@ -831,6 +845,7 @@ const DashboardPage: React.FC<{
                             onClick={() => setIsTipsOpen(true)}
                             className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors"
                             title="Consejos Financieros"
+                            aria-label="Ver consejos financieros"
                         >
                             <Icons.Lightbulb className="w-5 h-5" />
                         </button>
@@ -838,6 +853,7 @@ const DashboardPage: React.FC<{
                             onClick={() => setIsGuideOpen(true)}
                             className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 transition-colors"
                             title="Guía de Uso"
+                            aria-label="Ver guía de uso"
                         >
                             <Icons.BookOpen className="w-5 h-5" />
                         </button>
@@ -1016,20 +1032,6 @@ const DashboardPage: React.FC<{
                             <div>
                                 <h4 className="font-bold text-slate-800 dark:text-slate-200">Anota tus Pagos</h4>
                                 <p className="text-sm text-slate-500 dark:text-slate-400">Cada que pagues, regístralo aquí para que el saldo baje automáticamente.</p>
-                            </div>
-                        </div>
-                        <div className="flex gap-4">
-                            <div className="flex-shrink-0 w-8 h-8 bg-primary-100 dark:bg-primary-900/30 text-primary-600 rounded-full flex items-center justify-center font-bold">3</div>
-                            <div>
-                                <h4 className="font-bold text-slate-800 dark:text-slate-200">WhatsApp</h4>
-                                <p className="text-sm text-slate-500 dark:text-slate-400">Envía el estado de cuenta a tus deudores con un solo toque.</p>
-                            </div>
-                        </div>
-                        <div className="flex gap-4">
-                            <div className="flex-shrink-0 w-8 h-8 bg-primary-100 dark:bg-primary-900/30 text-primary-600 rounded-full flex items-center justify-center font-bold">4</div>
-                            <div>
-                                <h4 className="font-bold text-slate-800 dark:text-slate-200">Modo Noche</h4>
-                                <p className="text-sm text-slate-500 dark:text-slate-400">Usa el ícono de la luna para descansar tu vista de noche.</p>
                             </div>
                         </div>
                     </div>

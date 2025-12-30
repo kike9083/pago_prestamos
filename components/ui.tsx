@@ -136,7 +136,7 @@ export const Modal: FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
       <Card className="w-full max-w-lg m-4">
         <CardHeader className="flex justify-between items-center">
           <h2 className="text-lg font-semibold">{title}</h2>
-          <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">
+          <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" aria-label="Cerrar modal">
             <Icons.X className="w-5 h-5" />
           </button>
         </CardHeader>

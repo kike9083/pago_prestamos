@@ -20,7 +20,37 @@
 }
 
 @layer base {
-    body {
-        @apply bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-slate-900 dark:text-slate-100;
+    :root {
+        --safe-area-top: env(safe-area-inset-top, 24px);
+        /* Increased default for mobile status bar */
+        --safe-area-bottom: env(safe-area-inset-bottom, 16px);
     }
+
+    body {
+        @apply bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-slate-900 dark:text-slate-100 antialiased;
+        min-height: 100vh;
+        min-height: -webkit-fill-available;
+    }
+
+    html {
+        height: -webkit-fill-available;
+    }
+}
+
+/* Custom scrollbar for better appearance */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    @apply bg-slate-200 dark:bg-slate-700 rounded-full transition-colors;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-300 dark:bg-slate-600;
 }
