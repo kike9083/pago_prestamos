@@ -20,6 +20,108 @@ const formatDate = (dateString: string | null | undefined) => {
     });
 };
 
+// RefinanceLoanModal Component
+const RefinanceLoanModal: FC<{ isOpen: boolean; onClose: () => void; loan: Loan; onLoanUpdated: () => void; }> = ({ isOpen, onClose, loan, onLoanUpdated }) => {
+    const [additionalAmount, setAdditionalAmount] = useState('');
+    const [date, setDate] = useState(toYYYYMMDD(new Date()));
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError('');
+
+        const amount = parseFloat(additionalAmount);
+        if (isNaN(amount) || amount <= 0) {
+            setError('Por favor, introduce un monto válido y mayor que cero.');
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            // Optimistic update: Increase both initial_amount and current_balance
+            const newInitial = loan.initial_amount + amount;
+            const newBalance = loan.current_balance + amount;
+
+            const { error: loanError } = await supabase
+                .from('loans')
+                .update({
+                    initial_amount: newInitial,
+                    current_balance: newBalance,
+                    // We could optionally update last_payment_date or add a 'disbursement' record if we had a table for it.
+                    // For now, simple balance adjustment.
+                })
+                .eq('id', loan.id);
+
+            if (loanError) throw loanError;
+
+            onLoanUpdated();
+            onClose();
+            setAdditionalAmount('');
+            setDate(toYYYYMMDD(new Date()));
+        } catch (err: any) {
+            console.error("Error refinancing loan:", err);
+            setError('Error al actualizar el préstamo: ' + (err.message || 'Error desconocido'));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title="Refinanciar / Agregar Capital">
+            <form onSubmit={handleSubmit} className="space-y-5 py-2">
+                <div className="bg-primary/5 dark:bg-primary/10 p-4 rounded-xl border border-primary/10 text-xs text-primary font-medium leading-relaxed">
+                    <p className="flex items-start gap-2">
+                        <span className="material-icons-round text-sm mt-0.5">info</span>
+                        Esta acción sumará el monto ingresado tanto al <strong>Capital Inicial</strong> como al <strong>Saldo Restante</strong>.
+                    </p>
+                </div>
+
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-semibold text-text-light dark:text-text-dark mb-1.5" htmlFor="refinanceAmount">Monto a agregar ($)</label>
+                        <input
+                            id="refinanceAmount"
+                            className="w-full px-4 py-3 rounded-xl bg-input-light dark:bg-input-dark border border-gray-200 dark:border-gray-700 text-text-light dark:text-text-dark focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={additionalAmount}
+                            onChange={e => setAdditionalAmount(e.target.value)}
+                            required
+                        />
+                    </div>
+                </div>
+
+                {error && <p className="text-xs text-accent-red font-medium bg-accent-red/5 p-3 rounded-lg border border-accent-red/10">{error}</p>}
+
+                <div className="flex flex-col gap-2 pt-4">
+                    <button
+                        type="submit"
+                        className="w-full bg-primary hover:bg-primary/90 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-primary/30 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                        disabled={isLoading}
+                    >
+                        {isLoading ? <Spinner size="sm" color="white" /> : (
+                            <>
+                                <span className="material-icons-round">monetization_on</span>
+                                Agregar Capital
+                            </>
+                        )}
+                    </button>
+                    <button
+                        type="button"
+                        className="w-full bg-gray-100 dark:bg-gray-800 text-text-light dark:text-white py-3 rounded-xl font-bold active:scale-[0.98] transition-transform"
+                        onClick={onClose}
+                    >
+                        Cancelar
+                    </button>
+                </div>
+            </form>
+        </Modal>
+    );
+};
+
 // AddLoanModal Component
 const AddLoanModal: FC<{ isOpen: boolean; onClose: () => void; onLoanAdded: () => void; user_id: string; }> = ({ isOpen, onClose, onLoanAdded, user_id }) => {
     const [loanName, setLoanName] = useState('');
@@ -214,6 +316,8 @@ const EditLoanModal: FC<{ isOpen: boolean; onClose: () => void; loan: Loan; onLo
     const [phone, setPhone] = useState(loan.phone || '');
     const [interestRate, setInterestRate] = useState(loan.interest_rate.toString());
     const [termMonths, setTermMonths] = useState(loan.term_months.toString());
+    const [initialAmount, setInitialAmount] = useState(loan.initial_amount.toString());
+    const [currentBalance, setCurrentBalance] = useState(loan.current_balance.toString());
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -223,6 +327,8 @@ const EditLoanModal: FC<{ isOpen: boolean; onClose: () => void; loan: Loan; onLo
             setPhone(loan.phone || '');
             setInterestRate(loan.interest_rate.toString());
             setTermMonths(loan.term_months.toString());
+            setInitialAmount(loan.initial_amount.toString());
+            setCurrentBalance(loan.current_balance.toString());
             setError('');
         }
     }, [isOpen, loan]);
@@ -234,6 +340,8 @@ const EditLoanModal: FC<{ isOpen: boolean; onClose: () => void; loan: Loan; onLo
 
         const parsedRate = parseFloat(interestRate);
         const parsedTerm = parseInt(termMonths, 10);
+        const parsedInitial = parseFloat(initialAmount);
+        const parsedBalance = parseFloat(currentBalance);
 
         if (!name.trim()) {
             setError('El nombre es requerido.');
@@ -250,8 +358,18 @@ const EditLoanModal: FC<{ isOpen: boolean; onClose: () => void; loan: Loan; onLo
             setIsLoading(false);
             return;
         }
+        if (isNaN(parsedInitial) || parsedInitial <= 0) {
+            setError('Monto inicial inválido.');
+            setIsLoading(false);
+            return;
+        }
+        if (isNaN(parsedBalance) || parsedBalance < 0) {
+            setError('Saldo actual inválido.');
+            setIsLoading(false);
+            return;
+        }
 
-        const newSuggestedPayment = calculateSuggestedPayment(loan.initial_amount, parsedRate, parsedTerm);
+        const newSuggestedPayment = calculateSuggestedPayment(parsedInitial, parsedRate, parsedTerm);
 
         try {
             const { error } = await supabase
@@ -261,6 +379,8 @@ const EditLoanModal: FC<{ isOpen: boolean; onClose: () => void; loan: Loan; onLo
                     phone: phone.trim(),
                     interest_rate: parsedRate,
                     term_months: parsedTerm,
+                    initial_amount: parsedInitial,
+                    current_balance: parsedBalance,
                     suggested_payment: newSuggestedPayment
                 })
                 .eq('id', loan.id);
@@ -279,6 +399,13 @@ const EditLoanModal: FC<{ isOpen: boolean; onClose: () => void; loan: Loan; onLo
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Editar Datos">
             <form onSubmit={handleSubmit} className="space-y-5 py-2">
+                <div className="bg-accent-red/5 dark:bg-accent-red/10 p-4 rounded-xl border border-accent-red/10 text-xs text-accent-red font-medium leading-relaxed">
+                    <p className="flex items-start gap-2">
+                        <span className="material-icons-round text-sm mt-0.5">warning</span>
+                        Precaución: Editar el <strong>Monto Inicial</strong> o el <strong>Saldo Actual</strong> afectará los cálculos de intereses y el historial de pagos. Úsalo solo para corregir errores.
+                    </p>
+                </div>
+
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-semibold text-text-light dark:text-text-dark mb-1.5" htmlFor="edit-name">Nombre</label>
@@ -299,6 +426,34 @@ const EditLoanModal: FC<{ isOpen: boolean; onClose: () => void; loan: Loan; onLo
                             onChange={e => setPhone(e.target.value)}
                         />
                     </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-semibold text-text-light dark:text-text-dark mb-1.5" htmlFor="edit-initial">Monto Inicial ($)</label>
+                            <input
+                                id="edit-initial"
+                                className="w-full px-4 py-3 rounded-xl bg-input-light dark:bg-input-dark border border-gray-200 dark:border-gray-700 text-text-light dark:text-text-dark focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                                type="number"
+                                step="0.01"
+                                value={initialAmount}
+                                onChange={e => setInitialAmount(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-semibold text-text-light dark:text-text-dark mb-1.5" htmlFor="edit-balance">Saldo Actual ($)</label>
+                            <input
+                                id="edit-balance"
+                                className="w-full px-4 py-3 rounded-xl bg-input-light dark:bg-input-dark border border-gray-200 dark:border-gray-700 text-text-light dark:text-text-dark focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                                type="number"
+                                step="0.01"
+                                value={currentBalance}
+                                onChange={e => setCurrentBalance(e.target.value)}
+                                required
+                            />
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-semibold text-text-light dark:text-text-dark mb-1.5" htmlFor="edit-rate">Int. (%)</label>
@@ -548,6 +703,7 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
 
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isRefinanceModalOpen, setIsRefinanceModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState('');
 
@@ -758,6 +914,13 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
                             </button>
                         )}
                         <button
+                            onClick={() => setIsRefinanceModalOpen(true)}
+                            className="p-2 rounded-lg bg-card-light dark:bg-card-dark text-secondary-text-light dark:text-secondary-text-dark hover:text-primary transition-colors flex items-center justify-center"
+                            title="Refinanciar / Agregar Capital"
+                        >
+                            <span className="material-icons-round text-xl">monetization_on</span>
+                        </button>
+                        <button
                             onClick={() => setIsEditModalOpen(true)}
                             className="p-2 rounded-lg bg-card-light dark:bg-card-dark text-secondary-text-light dark:text-secondary-text-dark hover:text-primary transition-colors flex items-center justify-center"
                         >
@@ -771,6 +934,16 @@ const LoanDetail: FC<{ loan: Loan; onBack: () => void; onLoanUpdated: () => void
                         </button>
                     </div>
                 </header>
+
+                <RefinanceLoanModal
+                    isOpen={isRefinanceModalOpen}
+                    onClose={() => setIsRefinanceModalOpen(false)}
+                    loan={loan}
+                    onLoanUpdated={() => {
+                        onLoanUpdated();
+                        fetchLoanDetails();
+                    }}
+                />
 
                 <section className="mb-8">
                     <h2 className="text-xs font-semibold uppercase tracking-wider text-secondary-text-light dark:text-secondary-text-dark mb-4 pl-1">Resumen del Préstamo</h2>
