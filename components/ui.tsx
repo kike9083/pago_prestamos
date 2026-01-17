@@ -1,6 +1,6 @@
 import React, { FC, ReactNode } from 'react';
 
-// Icons
+// Icons (SVG versions as fallbacks)
 const LogOut: FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
 );
@@ -54,19 +54,19 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   isLoading?: boolean;
 }
 export const Button: FC<ButtonProps> = ({ children, variant = 'primary', size = 'default', isLoading = false, className = '', ...props }) => {
-  const baseClasses = "inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none";
+  const baseClasses = "inline-flex items-center justify-center font-bold transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none";
   const variantClasses = {
-    primary: "bg-primary-600 text-white hover:bg-primary-700",
-    secondary: "bg-slate-100 text-slate-900 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600",
-    danger: "bg-red-500 text-white hover:bg-red-600",
+    primary: "bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20",
+    secondary: "bg-gray-100 text-text-light hover:bg-gray-200 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700",
+    danger: "bg-accent-red text-white hover:bg-accent-red/90 shadow-lg shadow-accent-red/20",
   };
   const sizeClasses = {
-    default: "px-4 py-2 text-sm",
-    sm: "px-2 py-1 text-xs",
+    default: "px-6 py-3 rounded-xl text-sm",
+    sm: "px-3 py-1.5 rounded-lg text-xs",
   };
   return (
     <button className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`} disabled={isLoading} {...props}>
-      {isLoading && <Spinner className="mr-2" size={size === 'sm' ? 'sm' : 'md'} />}
+      {isLoading && <Spinner className="mr-2" size={size === 'sm' ? 'sm' : 'md'} color="white" />}
       {children}
     </button>
   );
@@ -76,13 +76,13 @@ export const Button: FC<ButtonProps> = ({ children, variant = 'primary', size = 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
 }
-export const Input: FC<InputProps> = React.forwardRef<HTMLInputElement, InputProps>(({ label, id, ...props }, ref) => (
-  <div>
-    <label htmlFor={id} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{label}</label>
+export const Input: FC<InputProps> = React.forwardRef<HTMLInputElement, InputProps>(({ label, id, className = '', ...props }, ref) => (
+  <div className="space-y-1.5">
+    <label htmlFor={id} className="block text-sm font-semibold text-text-light dark:text-text-dark">{label}</label>
     <input
       id={id}
       ref={ref}
-      className="block w-full rounded-md border-slate-300 bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-white text-slate-900 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm p-2"
+      className={`block w-full px-4 py-3 rounded-xl bg-input-light dark:bg-input-dark border border-gray-200 dark:border-gray-700 text-text-light dark:text-text-dark focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none text-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 ${className}`}
       {...props}
     />
   </div>
@@ -94,27 +94,28 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string;
 }
 export const Card: FC<CardProps> = ({ children, className = '', ...props }) => (
-  <div className={`bg-white dark:bg-slate-800 shadow-lg rounded-xl overflow-hidden ${className}`} {...props}>
+  <div className={`bg-card-light dark:bg-card-dark shadow-sm rounded-2xl border border-gray-200 dark:border-gray-700/50 overflow-hidden ${className}`} {...props}>
     {children}
   </div>
 );
 export const CardContent: FC<CardProps> = ({ children, className = '', ...props }) => (
-  <div className={`p-4 sm:p-6 ${className}`} {...props}>{children}</div>
+  <div className={`p-5 sm:p-6 ${className}`} {...props}>{children}</div>
 );
 export const CardHeader: FC<CardProps> = ({ children, className = '', ...props }) => (
-  <div className={`p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700 ${className}`} {...props}>{children}</div>
+  <div className={`px-5 py-4 sm:px-6 sm:py-5 border-b border-gray-100 dark:border-gray-700/50 ${className}`} {...props}>{children}</div>
 );
 
 
 // Spinner
-export const Spinner: FC<{ size?: 'sm' | 'md' | 'lg', className?: string }> = ({ size = 'md', className = '' }) => {
+export const Spinner: FC<{ size?: 'sm' | 'md' | 'lg', className?: string, color?: 'primary' | 'white' }> = ({ size = 'md', className = '', color = 'primary' }) => {
   const sizeClasses = {
     sm: 'h-4 w-4',
     md: 'h-6 w-6',
     lg: 'h-8 w-8',
   };
+  const colorClass = color === 'primary' ? 'text-primary' : 'text-white';
   return (
-    <svg className={`animate-spin ${sizeClasses[size]} text-primary-600 ${className}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <svg className={`animate-spin ${sizeClasses[size]} ${colorClass} ${className}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
     </svg>
@@ -132,18 +133,19 @@ export const Modal: FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" aria-modal="true" role="dialog">
-      <Card className="w-full max-w-lg m-4">
-        <CardHeader className="flex justify-between items-center">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" aria-label="Cerrar modal">
-            <Icons.X className="w-5 h-5" />
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] transition-opacity" onClick={onClose}></div>
+      <div className="bg-card-light dark:bg-card-dark w-full max-w-md rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700/50 relative z-10 overflow-hidden transform transition-all">
+        <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
+          <h2 className="text-xl font-bold tracking-tight text-text-light dark:text-white">{title}</h2>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors" aria-label="Cerrar modal">
+            <span className="material-icons-round">close</span>
           </button>
-        </CardHeader>
-        <CardContent>
+        </div>
+        <div className="p-6">
           {children}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };

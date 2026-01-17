@@ -5,39 +5,86 @@
 @source "./*.{js,ts,jsx,tsx}";
 
 @theme {
-    --color-primary-DEFAULT: #4f46e5;
+    --color-primary: #554AF0;
     --color-primary-50: #eef2ff;
     --color-primary-100: #e0e7ff;
     --color-primary-200: #c7d2fe;
     --color-primary-300: #a5b4fc;
     --color-primary-400: #818cf8;
     --color-primary-500: #6366f1;
-    --color-primary-600: #4f46e5;
+    --color-primary-600: #554AF0;
     --color-primary-700: #4338ca;
     --color-primary-800: #3730a3;
     --color-primary-900: #312e81;
     --color-primary-950: #1e1b4b;
+
+    --color-background-light: #F3F4F6;
+    --color-background-dark: #0B1121;
+    --color-card-light: #FFFFFF;
+    --color-card-dark: #161E32;
+    --color-input-light: #F9FAFB;
+    --color-input-dark: #374151;
+    --color-text-light: #111827;
+    --color-text-dark: #F9FAFB;
+    --color-secondary-text-light: #6B7280;
+    --color-secondary-text-dark: #9CA3AF;
+    --color-accent-green: #10B981;
+    --color-accent-red: #EF4444;
+    --color-accent-blue: #6366F1;
+    --color-success: #10B981;
+
+    --radius: 0.75rem;
+    --radius-xl: 1rem;
+    --radius-2xl: 1.5rem;
 }
 
 @layer base {
     :root {
         --safe-area-top: env(safe-area-inset-top, 24px);
-        /* Increased default for mobile status bar */
         --safe-area-bottom: env(safe-area-inset-bottom, 16px);
     }
 
     body {
-        @apply bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-slate-900 dark:text-slate-100 antialiased;
+        @apply bg-background-light text-text-light transition-colors duration-200 dark:bg-background-dark dark:text-text-dark antialiased;
         min-height: 100vh;
         min-height: -webkit-fill-available;
+        font-family: 'Inter', sans-serif;
     }
 
     html {
         height: -webkit-fill-available;
     }
+
+    input[type="checkbox"]:checked {
+        @apply bg-primary border-primary;
+    }
 }
 
-/* Custom scrollbar for better appearance */
+@layer utilities {
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: rgba(156, 163, 175, 0.5);
+        border-radius: 20px;
+    }
+}
+
+/* Custom scrollbar for better appearance globally */
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
