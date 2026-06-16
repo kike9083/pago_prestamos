@@ -8,13 +8,7 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       host: '0.0.0.0',
-      proxy: {
-        '/supabase-proxy': {
-          target: 'https://varios-supabase.fjueze.easypanel.host',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/supabase-proxy/, ''),
-        },
-      },
+      proxy: {},
     },
     plugins: [react()],
     define: {
@@ -23,8 +17,15 @@ export default defineConfig(({ mode }) => {
     },
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(__dirname, './src'),
       }
-    }
-  };
+    },
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: './src/shared/__tests__/setup.ts',
+      css: true,
+      exclude: ['e2e/**', 'node_modules/**'],
+    },
+  } as import('vite').UserConfig & { test: any };
 });
