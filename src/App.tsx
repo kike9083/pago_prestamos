@@ -6,6 +6,7 @@ import { useAuthStore } from './shared/store/authStore';
 import { useThemeStore } from './shared/store/themeStore';
 import { ToastContainer } from './shared/components/Toast';
 import { ErrorBoundary } from './shared/components/ErrorBoundary';
+import { PWARegister } from './shared/components/PWARegister';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,6 +34,7 @@ function AppContent() {
     <ErrorBoundary>
       <RouterProvider router={router} />
       <ToastContainer />
+      <PWARegister />
     </ErrorBoundary>
   );
 }
