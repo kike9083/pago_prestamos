@@ -1,8 +1,9 @@
-import { type FC, useState } from 'react';
+import { type FC, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, FileBarChart, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
 import { useLoans } from '../hooks/useLoans';
+import { useAllPaymentsSummary, getEffectiveBalance } from '../hooks/usePayments';
 import { formatCurrency } from '@/shared/utils/currency';
 import { Button } from '@/shared/components/Button';
 import { Card } from '@/shared/components/Card';
@@ -23,10 +24,10 @@ const item = {
   show: { opacity: 1, y: 0, transition: { duration: 0.3 } },
 };
 
-const LoanCard: FC<{ loan: any; onClick: () => void }> = ({ loan, onClick }) => {
+const LoanCard: FC<{ loan: any; balance: number; onClick: () => void }> = ({ loan, balance, onClick }) => {
   const progress =
     loan.initial_amount > 0
-      ? ((loan.initial_amount - loan.current_balance) / loan.initial_amount) * 100
+      ? ((loan.initial_amount - balance) / loan.initial_amount) * 100
       : 0;
   const isPaid = progress >= 100;
 
@@ -66,7 +67,7 @@ const LoanCard: FC<{ loan: any; onClick: () => void }> = ({ loan, onClick }) => 
               Saldo Pendiente
             </p>
             <p className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
-              {formatCurrency(loan.current_balance)}
+              {formatCurrency(balance)}
             </p>
           </div>
 
@@ -93,10 +94,24 @@ const LoanCard: FC<{ loan: any; onClick: () => void }> = ({ loan, onClick }) => 
 
 const LoanListPage: FC = () => {
   const { data: loans, isLoading, error } = useLoans();
+  const { data: allPayments } = useAllPaymentsSummary();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
 
-  const totalDebt = loans?.reduce((s, l) => s + l.current_balance, 0) ?? 0;
+  const effectiveBalances = useMemo(() => {
+    const map: Record<string, number> = {};
+    if (allPayments) {
+      for (const p of allPayments) {
+        if (!(p.loan_id in map)) {
+          map[p.loan_id] = p.balance_after_payment;
+        }
+      }
+    }
+    return map;
+  }, [allPayments]);
+
+  const getBalance = (loan: any) => effectiveBalances[loan.$id] ?? loan.current_balance;
+  const totalDebt = loans?.reduce((s, l) => s + getBalance(l), 0) ?? 0;
   const totalInitial = loans?.reduce((s, l) => s + l.initial_amount, 0) ?? 0;
   const totalPaid = totalInitial - totalDebt;
   const globalProgress = totalInitial > 0 ? (totalPaid / totalInitial) * 100 : 0;
@@ -194,6 +209,7 @@ const LoanListPage: FC = () => {
             <LoanCard
               key={loan.$id}
               loan={loan}
+              balance={getBalance(loan)}
               onClick={() => navigate(`/loans/${loan.$id}`)}
             />
           ))}

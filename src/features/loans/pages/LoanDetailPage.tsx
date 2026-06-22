@@ -56,7 +56,9 @@ const LoanDetailPage: FC = () => {
     );
   }
 
-  const principalPaid = loan.initial_amount - loan.current_balance;
+  const lastPayment = payments?.[0];
+  const effectiveBalance = lastPayment ? lastPayment.balance_after_payment : loan.current_balance;
+  const principalPaid = loan.initial_amount - effectiveBalance;
   const progress = loan.initial_amount > 0 ? (principalPaid / loan.initial_amount) * 100 : 0;
   const totalInterest = payments?.reduce((s, p) => s + p.interest_paid, 0) ?? 0;
 
@@ -86,7 +88,7 @@ const LoanDetailPage: FC = () => {
       <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-6">
           <p className="text-sm text-slate-500 mb-1">Saldo Restante</p>
-          <p className="text-3xl font-bold text-primary-600">{formatCurrency(loan.current_balance)}</p>
+          <p className="text-3xl font-bold text-primary-600">{formatCurrency(effectiveBalance)}</p>
         </Card>
         <Card className="p-6">
           <p className="text-sm text-slate-500 mb-1">Progreso de Pago</p>

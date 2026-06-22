@@ -68,6 +68,15 @@ export async function getPayments(loanId: string): Promise<Payment[]> {
   return documents as unknown as Payment[];
 }
 
+export async function getAllPaymentsForUser(userId: string): Promise<Payment[]> {
+  const { documents } = await databases.listDocuments(
+    DATABASE_ID,
+    PAYMENTS_COLLECTION_ID,
+    [Query.equal('user_id', userId), Query.orderDesc('payment_date')]
+  );
+  return documents as unknown as Payment[];
+}
+
 export async function createPayment(
   data: Omit<Payment, '$id'> & { $id?: string }
 ): Promise<Payment> {
