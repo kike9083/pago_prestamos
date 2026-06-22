@@ -16,7 +16,14 @@ export function useCreatePayment() {
   const addToast = useUIStore((s) => s.addToast);
 
   return useMutation({
-    mutationFn: (data: Omit<Payment, '$id'>) => loanService.createPayment(data),
+    mutationFn: async (data: Omit<Payment, '$id'>) => {
+      const payment = await loanService.createPayment(data);
+      await loanService.updateLoan(data.loan_id, {
+        current_balance: data.balance_after_payment,
+        last_payment_date: data.payment_date,
+      });
+      return payment;
+    },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['payments', variables.loan_id] });
       queryClient.invalidateQueries({ queryKey: ['loan', variables.loan_id] });
@@ -34,12 +41,21 @@ export function useUpdatePayment() {
   const addToast = useUIStore((s) => s.addToast);
 
   return useMutation({
-    mutationFn: ({ paymentId, data }: { paymentId: string; data: Partial<Payment> }) =>
-      loanService.updatePayment(paymentId, data),
+    mutationFn: async ({ paymentId, data }: { paymentId: string; data: Partial<Payment> }) => {
+      const updated = await loanService.updatePayment(paymentId, data);
+      if (data.loan_id && data.balance_after_payment !== undefined) {
+        await loanService.updateLoan(data.loan_id, {
+          current_balance: data.balance_after_payment,
+          last_payment_date: data.payment_date,
+        });
+      }
+      return updated;
+    },
     onSuccess: (_, { data }) => {
       if (data.loan_id) {
         queryClient.invalidateQueries({ queryKey: ['payments', data.loan_id] });
         queryClient.invalidateQueries({ queryKey: ['loan', data.loan_id] });
+        queryClient.invalidateQueries({ queryKey: ['loans'] });
       }
       addToast({ type: 'success', message: 'Pago actualizado' });
     },
