@@ -6,14 +6,15 @@ import { useCreatePayment } from '../hooks/usePayments';
 import { calculateInterestDue, toYYYYMMDD } from '@/shared/utils/amortization';
 import { formatCurrency } from '@/shared/utils/currency';
 import { Banknote } from 'lucide-react';
-import type { Loan } from '@/shared/types';
+import type { Loan, Payment } from '@/shared/types';
 
 interface PaymentFormProps {
   loan: Loan;
+  payments: Payment[] | undefined;
   onPaymentSuccess: () => void;
 }
 
-export const PaymentForm: FC<PaymentFormProps> = ({ loan, onPaymentSuccess }) => {
+export const PaymentForm: FC<PaymentFormProps> = ({ loan, payments, onPaymentSuccess }) => {
   const [amount, setAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState(toYYYYMMDD(new Date()));
   const [isExtraordinary, setIsExtraordinary] = useState(false);
@@ -23,25 +24,29 @@ export const PaymentForm: FC<PaymentFormProps> = ({ loan, onPaymentSuccess }) =>
 
   const createPayment = useCreatePayment();
 
+  const lastPayment = payments?.[0];
+  const effectiveBalance = lastPayment ? lastPayment.balance_after_payment : loan.current_balance;
+  const lastPaymentDate = lastPayment ? lastPayment.payment_date : null;
+
   useEffect(() => {
     const parsedAmount = parseFloat(amount);
     if (!isNaN(parsedAmount) && parsedAmount > 0 && paymentDate) {
       if (isExtraordinary) {
-        const newBal = Math.max(0, loan.current_balance - parsedAmount);
+        const newBal = Math.max(0, effectiveBalance - parsedAmount);
         setBreakdown({ interest: 0, principal: parsedAmount, newBalance: newBal, fortnights: 0 });
       } else {
         const { interest, fortnights } = calculateInterestDue(
-          loan.current_balance, loan.interest_rate,
-          loan.last_payment_date, loan.start_date, paymentDate
+          effectiveBalance, loan.interest_rate,
+          lastPaymentDate, loan.start_date, paymentDate
         );
         const principal = Math.max(0, parsedAmount - interest);
-        const newBal = Math.max(0, loan.current_balance - principal);
+        const newBal = Math.max(0, effectiveBalance - principal);
         setBreakdown({ interest, principal, newBalance: newBal, fortnights });
       }
     } else {
       setBreakdown(null);
     }
-  }, [amount, paymentDate, loan, isExtraordinary]);
+  }, [amount, paymentDate, loan, isExtraordinary, effectiveBalance, lastPaymentDate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,15 +60,15 @@ export const PaymentForm: FC<PaymentFormProps> = ({ loan, onPaymentSuccess }) =>
         amount_paid: parsedAmount,
         interest_paid: 0,
         principal_paid: parsedAmount,
-        balance_after_payment: Math.max(0, loan.current_balance - parsedAmount),
+        balance_after_payment: Math.max(0, effectiveBalance - parsedAmount),
       });
     } else {
       const { interest } = calculateInterestDue(
-        loan.current_balance, loan.interest_rate,
-        loan.last_payment_date, loan.start_date, paymentDate
+        effectiveBalance, loan.interest_rate,
+        lastPaymentDate, loan.start_date, paymentDate
       );
       const principal = parsedAmount - interest;
-      const newBalance = Math.max(0, loan.current_balance - principal);
+      const newBalance = Math.max(0, effectiveBalance - principal);
 
       await createPayment.mutateAsync({
         loan_id: loan.$id,

@@ -108,7 +108,7 @@ const LoanDetailPage: FC = () => {
 
       {/* Payment Form */}
       {loan.current_balance > 0 && (
-        <PaymentForm loan={loan} onPaymentSuccess={() => refetch()} />
+        <PaymentForm loan={loan} payments={payments} onPaymentSuccess={() => refetch()} />
       )}
 
       {/* Payment History */}

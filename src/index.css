@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
-@source "./components/**/*.{js,ts,jsx,tsx}";
-@source "./utils/**/*.{js,ts,jsx,tsx}";
-@source "./*.{js,ts,jsx,tsx}";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@source "../index.html";
+@source "./**/*.{js,ts,jsx,tsx}";
 
 @theme {
     --color-primary-DEFAULT: #4f46e5;
@@ -21,6 +22,6 @@
 
 @layer base {
     body {
-        @apply bg-slate-50 text-slate-900;
+        @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50;
     }
 }

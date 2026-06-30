@@ -28,6 +28,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             className={cn(
               'block w-full rounded-lg border bg-white dark:bg-slate-800 shadow-sm',
+              'text-slate-900 dark:text-slate-100',
               'text-sm placeholder:text-slate-400',
               'focus:outline-none focus:ring-2 focus:ring-offset-0',
               error
