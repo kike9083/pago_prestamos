@@ -10,9 +10,10 @@ interface PaymentHistoryProps {
   payments: Payment[] | undefined;
   isLoading: boolean;
   onEditPayment: (payment: Payment, index: number) => void;
+  interestRate?: number;
 }
 
-export const PaymentHistory: FC<PaymentHistoryProps> = ({ payments, isLoading, onEditPayment }) => {
+export const PaymentHistory: FC<PaymentHistoryProps> = ({ payments, isLoading, onEditPayment, interestRate }) => {
   if (isLoading) {
     return <div className="mt-8"><SkeletonTable /></div>;
   }
@@ -37,7 +38,9 @@ export const PaymentHistory: FC<PaymentHistoryProps> = ({ payments, isLoading, o
               <tr>
                 <th scope="col" className="px-6 py-4 font-medium">Fecha</th>
                 <th scope="col" className="px-6 py-4 font-medium text-right">Monto</th>
-                <th scope="col" className="px-6 py-4 font-medium text-right">Interés</th>
+                <th scope="col" className="px-6 py-4 font-medium text-right">
+                  Interés{interestRate !== undefined ? ` (${interestRate}%)` : ''}
+                </th>
                 <th scope="col" className="px-6 py-4 font-medium text-right">Capital</th>
                 <th scope="col" className="px-6 py-4 font-medium text-right">Saldo Anterior</th>
                 <th scope="col" className="px-6 py-4 font-medium text-right">Saldo Actual</th>

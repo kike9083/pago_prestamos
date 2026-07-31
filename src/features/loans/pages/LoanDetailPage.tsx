@@ -116,6 +116,7 @@ const LoanDetailPage: FC = () => {
         payments={payments}
         isLoading={paymentsLoading}
         onEditPayment={handleEditPayment}
+        interestRate={loan.interest_rate}
       />
 
       {/* Edit Payment Modal */}
