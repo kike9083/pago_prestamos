@@ -39,35 +39,42 @@ export const PaymentHistory: FC<PaymentHistoryProps> = ({ payments, isLoading, o
                 <th scope="col" className="px-6 py-4 font-medium text-right">Monto</th>
                 <th scope="col" className="px-6 py-4 font-medium text-right">Interés</th>
                 <th scope="col" className="px-6 py-4 font-medium text-right">Capital</th>
-                <th scope="col" className="px-6 py-4 font-medium text-right">Saldo</th>
+                <th scope="col" className="px-6 py-4 font-medium text-right">Saldo Anterior</th>
+                <th scope="col" className="px-6 py-4 font-medium text-right">Saldo Actual</th>
                 <th scope="col" className="px-6 py-4 font-medium text-center"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-              {payments.map((p, index) => (
-                <tr key={p.$id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                  <td className="px-6 py-4">{formatDate(p.payment_date)}</td>
-                  <td className="px-6 py-4 text-right font-semibold text-emerald-600 dark:text-emerald-400">
-                    {formatCurrency(p.amount_paid)}
-                  </td>
-                  <td className="px-6 py-4 text-right text-slate-500">{formatCurrency(p.interest_paid)}</td>
-                  <td className="px-6 py-4 text-right text-slate-500">{formatCurrency(p.principal_paid)}</td>
-                  <td className="px-6 py-4 text-right font-medium text-slate-700 dark:text-slate-300">
-                    {formatCurrency(p.balance_after_payment)}
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    {index === 0 && (
-                      <button
-                        onClick={() => onEditPayment(p, index)}
-                        className="text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
-                        title="Editar último pago"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {payments.map((p, index) => {
+                const previousBalance = p.balance_after_payment + p.principal_paid;
+                return (
+                  <tr key={p.$id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                    <td className="px-6 py-4">{formatDate(p.payment_date)}</td>
+                    <td className="px-6 py-4 text-right font-semibold text-emerald-600 dark:text-emerald-400">
+                      {formatCurrency(p.amount_paid)}
+                    </td>
+                    <td className="px-6 py-4 text-right text-slate-500">{formatCurrency(p.interest_paid)}</td>
+                    <td className="px-6 py-4 text-right text-slate-500">{formatCurrency(p.principal_paid)}</td>
+                    <td className="px-6 py-4 text-right text-slate-500">
+                      {formatCurrency(previousBalance)}
+                    </td>
+                    <td className="px-6 py-4 text-right font-medium text-slate-700 dark:text-slate-300">
+                      {formatCurrency(p.balance_after_payment)}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      {index === 0 && (
+                        <button
+                          onClick={() => onEditPayment(p, index)}
+                          className="text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
+                          title="Editar último pago"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
