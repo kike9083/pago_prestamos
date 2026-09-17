@@ -14,6 +14,31 @@ export const calculateSuggestedPayment = (principal: number, biweeklyRate: numbe
   return principal * (numerator / denominator);
 };
 
+export const getQuincenaIndex = (date: Date): number => {
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth();
+  const day = date.getUTCDate();
+
+  let targetYear = year;
+  let targetMonth = month;
+  let quincenaInMonth = 1;
+
+  if (day <= 5) {
+    targetMonth = month - 1;
+    if (targetMonth < 0) {
+      targetMonth = 11;
+      targetYear = year - 1;
+    }
+    quincenaInMonth = 2;
+  } else if (day <= 18) {
+    quincenaInMonth = 1;
+  } else {
+    quincenaInMonth = 2;
+  }
+
+  return targetYear * 24 + targetMonth * 2 + (quincenaInMonth - 1);
+};
+
 export const calculateInterestDue = (
   currentBalance: number,
   biweeklyRate: number,
@@ -43,19 +68,16 @@ export const calculateInterestDue = (
     return { interest: 0, fortnights: 0 };
   }
 
-  let fortnightsPassed = 0;
-  const timeDiff = paymentDate.getTime() - effectiveLastActivityDate.getTime();
-
-  if (timeDiff === 0) {
+  if (paymentDate.getTime() === effectiveLastActivityDate.getTime()) {
     if (!lastPaymentDateStr && paymentDate.getTime() === loanStartDate.getTime()) {
-      fortnightsPassed = 0;
-    } else {
-      fortnightsPassed = 1;
+      return { interest: 0, fortnights: 0 };
     }
-  } else {
-    const daysSinceLastPayment = Math.ceil(timeDiff / (1000 * 3600 * 24));
-    fortnightsPassed = Math.ceil(daysSinceLastPayment / 15.0);
   }
+
+  const lastIndex = getQuincenaIndex(effectiveLastActivityDate);
+  const payIndex = getQuincenaIndex(paymentDate);
+
+  const fortnightsPassed = Math.max(0, payIndex - lastIndex);
 
   if (fortnightsPassed <= 0) return { interest: 0, fortnights: 0 };
 
